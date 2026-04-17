@@ -1,0 +1,11 @@
+{
+  "projectBaseUrl": "${workspaceFolder}",
+  "ignorePatterns": [
+    {
+      "pattern": "^mailto*"
+    },
+    {
+      "pattern": "example\\.com"
+    }
+  ]
+}

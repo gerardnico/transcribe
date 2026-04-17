@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=https://json.schemastore.org/dependabot-2.0.json
+# https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference
+# Note that you can merge the PR automatically
+# Example: https://github.com/RohanNagar/jmail/blob/master/.github/workflows/automerge-dependabot.yml
+version: 2
+updates:
