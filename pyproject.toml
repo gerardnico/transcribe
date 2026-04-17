@@ -1,5 +1,6 @@
+# https://packaging.python.org/en/latest/guides/writing-pyproject-toml/
 [project]
-name = "transcript"
+name = "transcribe"
 requires-python = ">=3.11"
 version = "0.1.0"
 # https://github.com/yt-dlp/yt-dlp/releases
@@ -10,6 +11,8 @@ dependencies = [
   "packaging==26.0",
 ]
 
+# Built backend
+# https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#declaring-the-build-backend
 [build-system]
 # no setuptools, no *.egg-info/
 # requires = ["setuptools"]
@@ -17,12 +20,13 @@ dependencies = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-
+# Executable script
+# https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#creating-executable-scripts
 [project.scripts]
 # Note the hyphen vs underscore —
 # the CLI command uses a hyphen (as you named it),
 # but the Python module name uses an underscore since hyphens aren't valid in Python identifiers.
-transcript = "transcript_downloader:main"
+transcribe = "gerardnico.transcribe.cli:main"
 
 # To resolve: raceback (most recent call last):
 #  File "/home/admin/.local/bin/transcript-downloader", line 3, in <module>
@@ -30,13 +34,13 @@ transcript = "transcript_downloader:main"
 #   ModuleNotFoundError: No module named 'transcript_downloader'
 #   The behavior difference between laptops is likely a setuptools version difference —
 #   older setuptools used to auto-discover top-level .py modules, newer versions require explicit py-modules declaration.
-[tool.setuptools]
-py-modules = ["transcript_downloader"]
+# [tool.setuptools]
+# py-modules = ["transcript_downloader"]
 
-# Package find
+# Package find with hatch
 [tool.hatch.build.targets.wheel]
 packages = ["src/gerardnico"]
 
-# or with setuptools:
+# Package find with setuptools:
 [tool.setuptools.packages.find]
 where = ["src"]
