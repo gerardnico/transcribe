@@ -10,19 +10,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, List
 import logging
+import webvtt
+import yt_dlp
 
 logger = logging.getLogger(__name__)
-
-try:
-    import yt_dlp
-except ImportError:
-    logger.error("Error: yt-dlp is not installed. Install it with: pip install yt-dlp")
-    sys.exit(1)
-
-try:
-    import webvtt
-except ImportError:
-    logger.warning("Warning: webvtt-py not installed. Install with: pip install webvtt-py")
 
 
 def _require_dependency(pkg: str, version: str):
@@ -587,8 +578,8 @@ def main():
     post_processing(context)
 
     # Result
-    isAgent: bool = args.agent
-    if isAgent:
+    is_agent: bool = args.agent
+    if is_agent:
         print(f"The transcript is:\n")
     else:
         print(f"Transcript files:")
@@ -599,7 +590,7 @@ def main():
         if not item.name.startswith('subtitle'):
             # not a subtitle
             continue
-        if not isAgent:
+        if not is_agent:
             # in a non-agent mode, we print all available subtitle file
             print(item)
             continue

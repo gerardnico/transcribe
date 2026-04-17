@@ -17,6 +17,9 @@ end_of_line = lf
 # and this is the check that fails most often
 insert_final_newline = unset
 
+[*.py]
+indent_size = 4
+
 # https://www.jetbrains.com/help/idea/settings-code-style-xml.html
 [*.xml]
 # Why align_attributes false?
@@ -62,24 +65,6 @@ ij_shell_minify_program = false
 # 1) First
 #    Second
 indent_size = unset
-
-[*.ts]
-# indent is unset because
-# a comment has only one space margin in intellij
-# ie
-# /**
-#  * Star is at once space
-indent_size = unset
-
-[*.java]
-# Due to catch (IllegalBlockSizeException
-#        InvalidKeyException e) {
-indent_size = unset
-# Block comment (single star on all lines!) should align to the code and not to the first column
-# By default, only javadoc comment (double star) do that
-ij_java_block_comment_at_first_column = false
-# if true, the comments characters (//) are set at the beginning
-ij_java_line_comment_at_first_column = false
 
 [*.{cmd,bat}]
 end_of_line = crlf
