@@ -1,6 +1,6 @@
 # https://modelcontextprotocol.io/docs/develop/build-server#importing-packages-and-setting-up-the-instance
 from typing import Any
-
+import uvicorn
 import httpx
 from mcp.server.fastmcp import FastMCP
 
@@ -96,7 +96,21 @@ Forecast: {period["detailedForecast"]}
 
 def main():
     # Initialize and run the server
-    mcp.run(transport="stdio")
+    # mcp.run(transport="stdio")
+
+    # http://127.0.0.1:8000/mcp
+    # same as mcp.run(transport="streamable-http")
+    # for https://127.0.0.1:8000/mcp (mandatory)
+    # see task cert to generate the certs
+    app = mcp.streamable_http_app()  # or mcp.get_asgi_app()
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000,
+        ssl_keyfile="./private.key",
+        ssl_certfile="./certificate.crt",
+    )
+
 
 
 if __name__ == "__main__":

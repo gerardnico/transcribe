@@ -15,3 +15,7 @@ out
 .venv
 *.egg-info/
 __pycache__/
+
+# Key
+*.key
+*.crt
