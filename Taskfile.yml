@@ -7,3 +7,7 @@ tasks:
     cmds:
       - |
         copier update --vcs-ref HEAD .
+  start:
+    cmds:
+      - |
+        uv run mcp dev src\gerardnico\transcribe\mcp\mcp_server.py

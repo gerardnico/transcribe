@@ -1,5 +1,8 @@
 
-VIRTUAL_ENV="$PROJECT_ROOT/.venv"
+export VIRTUAL_ENV="$PROJECT_ROOT/.venv"
 
 # creates .venv + installs deps automatically
 uv sync
+
+# activate
+source .venv/bin/activate

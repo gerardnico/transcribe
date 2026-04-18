@@ -25,3 +25,21 @@ brew install deno
 ```bash
 transcribe https://www.tiktok.com/@xxx/video/xxx
 ```
+
+## Mcp Configuration
+
+```json
+{
+    "mcpServers": {
+        "weather": {
+            "command": "C:\\Users\\name\\.local\\bin\\uv.exe",
+            "args": [
+                "--directory",
+                "C:\\Users\\name\\code\\transcribe",
+                "run",
+                "src\\gerardnico\\transcribe\\mcp\\mcp_server.py"
+            ]
+        }
+    }
+}
+```
