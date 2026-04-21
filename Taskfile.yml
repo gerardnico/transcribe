@@ -7,10 +7,19 @@ tasks:
     cmds:
       - |
         copier update --vcs-ref HEAD .
-  start:
+  transcribe:
     cmds:
       - |
-        uv run mcp dev src\gerardnico\transcribe\mcp\mcp_server.py
+        uv run src\gerardnico\transcribe\cli.py
+  test:
+    cmds:
+      -|
+      # verbose: uv run pytest -v
+      uv run pytest
+  mcp-inspect:
+    cmds:
+      - |
+        uv run fastmcp inspect src\gerardnico\transcribe\cli.py mcp
   cert:
     cmds:
       - |

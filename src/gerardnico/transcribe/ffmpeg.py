@@ -1,7 +1,7 @@
 import subprocess
 from pathlib import Path
 
-from src.gerardnico.transcribe.api import Request
+from gerardnico.transcribe.api import Request
 import logging
 logger = logging.getLogger(__name__)
 

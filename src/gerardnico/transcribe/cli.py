@@ -13,14 +13,16 @@ from typing import Optional
 
 import typer
 import webvtt
+from rich.pretty import pprint
 
-from src.gerardnico.transcribe.api import Request, Paths
+from gerardnico.transcribe.api import Request, Paths, McpTransport, Response
+from gerardnico.transcribe.mcp_server import mcp_run
 
 app = typer.Typer()
 
-from src.gerardnico.transcribe.ffmpeg import video_to_audio
-from src.gerardnico.transcribe.social import execute_yt_dlp
-from src.gerardnico.transcribe.whisper import post_processing_transcribe_audio_to_text
+from gerardnico.transcribe.ffmpeg import video_to_audio
+from gerardnico.transcribe.social import execute_yt_dlp
+from gerardnico.transcribe.whisper import post_processing_transcribe_audio_to_text
 
 logger = logging.getLogger(__name__)
 
@@ -290,8 +292,8 @@ def build_request(cli_args: CliArgs) -> Request:
     # or, we can add `%(upload_date>%Y-%m-%d)s` in a template
     transcribe_home = os.environ.get('TRANSCRIBE_HOME')
     if not transcribe_home:
-        transcribe_home = os.environ.get('HOME') + ".transcribe"
-    runtime_directory = f"{transcribe_home}/{service_name}/{id_value}"
+        transcribe_home = os.environ.get('HOME') + "/.transcribe"
+    runtime_directory = Path(f"{transcribe_home}/{service_name}/{id_value}")
 
     # orig is a lang suffix of YouTube
     # it the video is in nl, you get 2 subtitles, `nl` and `nl-orig`
@@ -311,8 +313,8 @@ def build_request(cli_args: CliArgs) -> Request:
         # social media request
         file_extension = "mp4"
         file_name = f"video.{file_extension}"
-        video_path = f"{runtime_directory}/{file_name}"
-        audio_path = f"{runtime_directory}/audio.wav"
+        video_path = Path(f"{runtime_directory}/{file_name}")
+        audio_path = Path(f"{runtime_directory}/audio.wav")
     else:
         raise ValueError(f"File Scheme not yet implemented")
 
@@ -330,6 +332,7 @@ def build_request(cli_args: CliArgs) -> Request:
         langs=langs,
         paths=Paths(
             runtime_directory=runtime_directory,
+            file_extension=file_extension,
             file_name=file_name,
             video_path=video_path,
             audio_path=audio_path
@@ -341,17 +344,67 @@ def build_request(cli_args: CliArgs) -> Request:
 
 
 @app.command()
-def process(uri: str = typer.Argument(..., help='URI (URL or file path)'),
-            langs: Optional[str] = typer.Option(None, '-l', '--langs', help='Language codes (e.g., es,fr)'),
-            agent: bool = typer.Option(False, '-a', '--agent', help='Agent mode'),
-            verbose: bool = typer.Option(False, '-v', '--verbose', help='Verbose mode'),
-            download: bool = typer.Option(False, '-d', '--download', help='Download the video')
-            ):
-    """Transcribe audio/video from a URI"""
-
-    cli_args = CliArgs(uri=uri, lang=langs, verbose=verbose, download=download)
+def info(uri: str = typer.Argument(..., help='URI (URL or file path)')):
+    cli_args = CliArgs(uri=uri)
     request = build_request(cli_args)
+    pprint(request)
+    print("Local Transcripts:")
+    list_transcripts(request)
 
+
+def list_transcripts(request: Request):
+    """
+    :param request:
+    :return: a list of local transcripts path
+    """
+    for item in request.paths.runtime_directory.iterdir():
+        item: Path
+        if not item.is_file():
+            continue
+        if not item.name.startswith('subtitle'):
+            # not a subtitle
+            continue
+        # in a non-agent mode, we print all available subtitle file
+        print(item)
+
+
+def get_transcript_from_runtime_dir(request: Request):
+    """
+    :param request:
+    :return: the local transcript path or empty if none was found
+    """
+    subtitle_path: Path | None = None
+    for item in request.paths.runtime_directory.iterdir():
+        item: Path
+        if not item.is_file():
+            continue
+        if not item.name.startswith('subtitle'):
+            # not a subtitle
+            continue
+        if not item.suffix.lower() == '.txt':
+            continue
+        if not request.langs is None:
+            subtitle_language = Path(item.name).stem.split(".", 1)[1]
+            asked_lang = request.langs[0]
+            if not asked_lang in subtitle_language.lower():
+                continue
+        subtitle_path = item
+        break
+    return subtitle_path
+
+
+def get_transcript_from_request(request: Request) -> Response:
+    if request.service_name == "file":
+        raise Exception("File processing is not yet implemented")
+
+    # Check if we have it locally
+    actual_transcript_path = get_transcript_from_runtime_dir(request)
+    if actual_transcript_path:
+        return Response(
+            path=actual_transcript_path
+        )
+
+    # Download/Transcribe
     final_error = None
     try:
         # Download subtitle and optionally the video
@@ -364,38 +417,48 @@ def process(uri: str = typer.Argument(..., help='URI (URL or file path)'),
     # Post processing (vtt file, transcribe)
     post_processing(request)
 
+    return Response(
+        path=get_transcript_from_runtime_dir(request),
+        error=final_error
+    )
+
+
+@app.command()
+def get(uri: str = typer.Argument(..., help='URI (URL or file path)'),
+        langs: Optional[str] = typer.Option(None, '-l', '--langs', help='Language codes (e.g., es,fr)'),
+        agent: bool = typer.Option(False, '-a', '--agent', help='Agent mode'),
+        verbose: bool = typer.Option(False, '-v', '--verbose', help='Verbose mode'),
+        download: bool = typer.Option(False, '-ds', '--download-source', help='Download the source video')
+        ):
+    """Transcribe audio/video from a URI"""
+
+    cli_args = CliArgs(uri=uri, lang=langs, verbose=verbose, download=download)
+    request = build_request(cli_args)
+
+    response = get_transcript_from_request(request)
+
     # Result
     is_agent: bool = agent
     if is_agent:
-        print(f"The transcript is:\n")
+        logger.info(f"The transcript is:")
+        actual_transcript_path = response.path
+        if actual_transcript_path:
+            print(actual_transcript_path.read_text(encoding="utf-8"))
+        else:
+            raise FileNotFoundError(f"No transcript found at {request.paths.runtime_directory}")
     else:
-        print(f"Transcript files:")
-    for item in Path(request.paths.runtime_directory).iterdir():
-        item: Path
-        if not item.is_file():
-            continue
-        if not item.name.startswith('subtitle'):
-            # not a subtitle
-            continue
-        if not is_agent:
-            # in a non-agent mode, we print all available subtitle file
-            print(item)
-            continue
-        # agent mode
-        # output only the asked language in text mode
-        if not item.suffix.lower() == '.txt':
-            continue
-        if not langs is None:
-            subtitle_language = Path(item.name).stem.split(".", 1)[1]
-            asked_lang = langs[0]
-            if not asked_lang in subtitle_language.lower():
-                continue
-        print(item.read_text(encoding="utf-8"))
-        break
+        logger.info(f"Transcript files:")
+        list_transcripts(request)
 
     # Raise if any error
-    if final_error is not None and final_error.code != 0:
-        raise final_error
+    if response.error is not None and response.error.code != 0:
+        raise response.error
+
+
+@app.command(name="mcp")
+def mcp_command(transport: McpTransport = typer.Option(McpTransport.stdio, help="Transport protocol")):
+    logger.info(f"{transport.name} Mcp server started")
+    mcp_run(transport)
 
 
 if __name__ == '__main__':

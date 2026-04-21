@@ -1,11 +1,9 @@
-# Transcribe Utility: Script to get a Transcript
+# Transcribe - Get transcripts from anywhere
 
 * Verb: Do: Transcribe means to convert speech or audio into written text.
 * Noun: Done: A transcript is the written text that results from transcribing.
 
-## How to use / Requirement
-
-### Install
+## Install
 
 * Pipx: Create a venv, install dependency, install script
 
@@ -20,13 +18,46 @@ pipx install -e --force .
 brew install deno
 ```
 
-### Run
+## Commands
+
+### Get
+
+Get the transcript
 
 ```bash
-transcribe https://www.tiktok.com/@xxx/video/xxx
+transcribe get uri
+transcribe get https://www.tiktok.com/@xxx/video/xxx
 ```
 
-## Mcp Configuration
+### Info
+
+Show general information
+
+```bash
+transcribe info uri
+```
+
+### Mcp
+
+Start a mcp server
+
+```bash
+transcribe mcp
+```
+
+## Conf
+
+### TRANSCRIBE_HOME
+
+`TRANSCRIBE_HOME` is where all data are downloaded/processed.
+
+The default value is `$HOME/.transcribe`. You can see it with the [info command](#info) before downloading.
+
+```powershell
+$env:TRANSCRIBE_HOME = "C:\tmp\transcribe"
+```
+
+### Mcp
 
 ```json
 {
@@ -37,13 +68,10 @@ transcribe https://www.tiktok.com/@xxx/video/xxx
         "--directory",
         "C:\\Users\\name\\code\\transcribe",
         "run",
-        "src\\gerardnico\\transcribe\\mcp\\mcp_server.py"
+        "src\\gerardnico\\transcribe\\cli.py",
+        "mcp"
       ]
     }
   }
 }
 ```
-
-## Conf
-
-* `TRANSCRIBE_HOME` (default to `$HOME/.transcribe`): the runtime path
