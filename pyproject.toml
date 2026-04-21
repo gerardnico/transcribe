@@ -2,6 +2,7 @@
 [project]
 name = "transcribe"
 requires-python = ">=3.11"
+readme = "README.md"
 version = "0.1.0"
 # https://github.com/yt-dlp/yt-dlp/releases
 # curl-cffi is for the impersonnation: https://github.com/yt-dlp/yt-dlp#impersonation
@@ -9,14 +10,15 @@ dependencies = [
   "yt-dlp[default,curl-cffi]==2026.03.17",
   "webvtt-py==0.5.1",
   "packaging==26.0",
-  "mcp[cli]>=1.27.0",
-  "httpx>=0.28.1",
-  "typer>=0.24.1",
+  "mcp[cli]==1.27.0",
+  "httpx==0.28.1",
+  "typer==0.24.1",
 ]
 
 [dependency-groups]
 dev = [
-  "pytest>=9.0.3",
+  "pytest==9.0.3",
+  "pytest-asyncio==1.3.0",
 ]
 
 # Built backend
@@ -55,5 +57,7 @@ where = ["src"]
 
 # Test
 [tool.pytest.ini_options]
+asyncio_mode = "auto"        # enables automatic async detection
 testpaths = ["tests"]        # where pytest looks
 pythonpath = ["src"]         # add src/ to sys.path (src layout)
+python_files = ["test_*.py"]

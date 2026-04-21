@@ -37,3 +37,11 @@ class Response:
 class McpTransport(str, Enum):
     stdio = "stdio"
     http = "http"
+
+
+@dataclass
+class TranscribeArgs:
+    uri: str
+    lang: Optional[str] = field(default=None)
+    verbose: bool = field(default=False)
+    download_source: bool = field(default=False)
