@@ -13,6 +13,11 @@ dependencies = [
   "httpx>=0.28.1",
 ]
 
+[dependency-groups]
+dev = [
+  "pytest>=9.0.3",
+]
+
 # Built backend
 # https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#declaring-the-build-backend
 [build-system]
@@ -46,3 +51,8 @@ packages = ["src/gerardnico"]
 # Package find with setuptools:
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# Test
+[tool.pytest.ini_options]
+testpaths = ["tests"]        # where pytest looks
+pythonpath = ["src"]         # add src/ to sys.path (src layout)

@@ -4,14 +4,17 @@ TikTok Transcript Downloader using yt-dlp
 Downloads and formats transcripts from TikTok videos
 """
 import argparse
-import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, List
+from urllib.parse import ParseResult
 import logging
 import webvtt
-import yt_dlp
+
+from src.gerardnico.transcribe.ffmpeg import video_to_audio
+from src.gerardnico.transcribe.social import execute_yt_dlp
+from src.gerardnico.transcribe.whisper import post_processing_transcribe_audio_to_text
 
 logger = logging.getLogger(__name__)
 
@@ -30,13 +33,17 @@ def _require_dependency(pkg: str, version: str):
             f"but {installed} is installed"
         )
 
-
+# Info extract from the uru
 @dataclass
-class UrlInfo:
+class UriInfo:
+    # The url apex name
     apex_name: str
+    # The service (YouTube, ...)
     service_name: str
+    # The id
     id: str
-    url: str
+    # The parsed result
+    uri: ParseResult
 
 
 @dataclass
@@ -51,9 +58,9 @@ class ModeInfo:
 
 @dataclass
 class Context:
-    video: UrlInfo
+    video: UriInfo
     langs: List[str]
-    download_directory: str
+    runtime_directory: str
     mode: ModeInfo
     verbose: bool
 
@@ -164,7 +171,7 @@ class ArgumentParserNoUsage(argparse.ArgumentParser):
         sys.exit(2)
 
 
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, ParseResult
 
 
 def post_processing_vtt(vtt_file_path: Path) -> None:
@@ -221,11 +228,11 @@ def post_processing(context: Context) -> None:
     Args:
         context: The context object
     """
-    directory = context.download_directory
+    directory = context.runtime_directory
     directory_path = Path(directory)
 
     if not directory_path.exists():
-        raise ValueError(f"Directory does not exist: {directory}")
+        raise ValueError(f"Runtime Directory does not exist: {directory}")
 
     vtt_file_count = 0
     for item in directory_path.iterdir():
@@ -241,15 +248,13 @@ def post_processing(context: Context) -> None:
 
     logger.info(f"Trying to transcribe")
     if get_transcription(context, vtt_file_count):
-        post_processing_transcribe_video_to_audio(context)
+        video_to_audio(context)
         post_processing_transcribe_audio_to_text(context)
 
 
-# If you want to use dot notation (like result.id), you need to use a dataclass or regular class
-# because with TypedDict, you need to access the values using dictionary bracket notation, not dot notation
-def get_url_info(url) -> UrlInfo:
-    parsed = urlparse(url)
-    apex_name = parsed.netloc
+def parse_uri(uri) -> UriInfo:
+    parsed_uri: ParseResult = urlparse(uri)
+    apex_name = parsed_uri.netloc # authority
 
     # remove www. if present
     if apex_name.startswith("www."):
@@ -264,13 +269,13 @@ def get_url_info(url) -> UrlInfo:
     # YouTube URL handling
     if "youtube.com" in apex_name:
         # YouTube video ID is usually in the 'v' query parameter
-        query_params = parse_qs(parsed.query)
+        query_params = parse_qs(parsed_uri.query)
         id_value = query_params.get('v', [''])[0]
 
     # TikTok URL handling
     elif "tiktok.com" in apex_name:
         # TikTok ID is made of username (without @) + last part of path
-        path_parts = [p for p in parsed.path.split('/') if p]
+        path_parts = [p for p in parsed_uri.path.split('/') if p]
         if len(path_parts) != 3 or (not path_parts[0].startswith('@')) or path_parts[1] != 'video':
             raise ValueError("The tiktok url is not valid")
         username = path_parts[0][1:]  # remove @
@@ -278,224 +283,24 @@ def get_url_info(url) -> UrlInfo:
         id_value = f"{username}-{video_id}"
     elif "x.com" in apex_name:
         # https://x.com/forrestpknight/status/2012561898097594545
-        path_parts = [p for p in parsed.path.split('/') if p]
+        path_parts = [p for p in parsed_uri.path.split('/') if p]
         if len(path_parts) != 3 and path_parts[1] != 'status':
             raise ValueError("The x url is not valid")
         username = path_parts[0]
         video_id = path_parts[2]
         id_value = f"{username}-{video_id}"
 
-    return UrlInfo(
+    return UriInfo(
         apex_name=apex_name,
         service_name=service_name,
         id=id_value,
-        url=url
+        uri=parsed_uri
     )
-
-
-def get_download_video(context):
-    if context.mode.type == 'text':
-        logger.info(f"Text mode: no video download")
-        return False
-    if Path(context.mode.video_path).exists():
-        logger.info(f"File {context.mode.video_path} already downloaded")
-        return False
-    logger.info(f"No video found, video mode: download video")
-    return True
-
-
-# Execute yt-dlp
-def execute_yt_dlp(context: Context):
-    args = []
-
-    # Download video?
-    if get_download_video(context):
-        args += [
-            # https://github.com/yt-dlp/yt-dlp#preset-aliases
-            "-t", context.mode.file_extension,
-            # indicate a template for the output file names
-            # https://github.com/yt-dlp/yt-dlp#output-template
-            "-o", context.mode.file_name
-        ]
-    else:
-        args += [
-            # Do not download the video but write all related files (Alias: --no-download)
-            "--skip-download"
-        ]
-
-    # Subtitle Lang determination
-    # Split by comma and loop
-    langs_regexp = []
-    case_insensitivity_flag = "(?i)"
-    lang_separator = ','
-    found_orig = False
-    orig = "orig"
-
-    # YouTube block by video once you are blocked, it can take time,
-    # but it will work with another video
-    sleep = len(langs_regexp) * 2
-
-    # We use the main cli
-    # because it's also possible to embed it, but it's a pain in the ass
-    # the options are not the same as the doc and the download happens as an option
-    # For embedding, see https://github.com/yt-dlp/yt-dlp?tab=readme-ov-file#embedding-yt-dlp
-    #
-    # To get video info, it's:
-    # with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-    #    info = ydl.extract_info(url, download=False)
-
-    if not context.verbose:
-        args += [
-            "--quiet",
-            "--no-warnings"
-        ]
-
-    # Lang selections:
-    # By default, we don't set a lang. We let yt-dlp decide
-    # --sub-langs: Languages of the subtitles to download (can be regex) or "all" separated by commas, e.g.
-    # --sub-langs "en.*,ja" (where "en.*" is a regex pattern that matches "en" followed by 0 or more of any character).
-    # You can prefix the language code with a "-" to exclude it from the requested languages, e.g.
-    # --sub-langs all,-live_chat. Use --list-subs for a list of available language tags
-    if not context.langs is None:
-        for lang in context.langs:
-            if lang == orig:
-                found_orig = True
-                langs_regexp.append(f"{case_insensitivity_flag}.*-{orig}.*")
-            else:
-                langs_regexp.append(f"{case_insensitivity_flag}{lang}.*")
-        langs_ytd = lang_separator.join(langs_regexp)
-        # Don't download the orig subtitle if not specified
-        if found_orig == False and context.video.service_name == "youtube":
-            langs_ytd = f"{langs_ytd}{lang_separator}-.*-{orig}.*"
-        args += [
-            "--sub-langs",
-            f"{langs_ytd}"
-        ]
-
-    args += [
-        # Download the subtitle (not generated)
-        "--write-subs",
-        # Write automatically generated subtitle file (Alias: --write-automatic-subs)
-        "--write-auto-subs",
-        # Subtitle format; accepts formats preference separated by "/", e.g. "srt" or "ass/srt/best"
-        "--sub-format", "vtt/srt/best",
-        # For the output file names, this is a template string
-        # https://github.com/yt-dlp/yt-dlp#output-template
-        # "-o", "subtitle:%(extractor)s-%(uploader)s-%(id)s.%(ext)s",
-        "-o", f"subtitle:subtitle.%(ext)s",
-        # Write video metadata to a .info.json file
-        "--write-info-json",
-        "-o", f"infojson:data",  # file is data.info.json
-        # Location in the filesystem where yt-dlp can store some downloaded information (such as
-        # client ids and signatures) permanently. By default, ${XDG_CACHE_HOME}/yt-dlp
-        # --cache-dir DIR
-        # Write thumbnail image to disk (extension is image when unknown - mostly webp)
-        # originCover
-        "--write-thumbnail",
-        # not .%(ext)s as it's added by yt_dlp as image
-        "-o", f"thumbnail:thumbnail",
-        # Convert the thumbnails to another format (currently supported: jpg, png, webp)
-        "--convert-thumbnails", "webp",
-        # Number of seconds to sleep before each subtitle download
-        "--sleep-subtitles", f"{sleep}",
-        # The paths where the files should be downloaded.
-        # Specify the type of file and the path separated by a colon ":". All the same
-        # TYPES as --output are supported. Additionally, you can also provide "home" (default) and "temp" paths.
-        # All intermediary files are first downloaded to the temp path and then the final files are moved over to
-        # the home path after download is finished.
-        # This option is ignored if --output is an absolute path
-        # Specify the working directory (home)
-        "--paths", f"home:{context.download_directory}",
-        # put all temporary files in "wd\tmp"
-        "--paths", "temp:tmp",
-        # put all subtitle files in home/working directory
-        "--paths", "subtitle:.",
-        context.video.url
-    ]
-    logger.info("Command: yt-dlp " + " ".join(str(x) for x in args))
-    yt_dlp.main(args)
-
-
-def post_processing_transcribe_video_to_audio(context):
-    if context.mode.type == 'audio':
-        raise ValueError("Audio processing not yet implemented")
-
-    if Path(context.mode.audio_path).exists():
-        logger.debug(f"Audio file already exist: {context.mode.audio_path}")
-        return
-
-    command = [
-        "ffmpeg",
-        "-i", f"{context.mode.video_path}",
-        "-ar", "16000",
-        "-ac", "1",
-        "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
-        "-c:a", "pcm_s16le",
-        context.mode.audio_path
-    ]
-
-    try:
-        result = subprocess.run(
-            command,
-            check=True,
-            capture_output=True,
-            text=True
-        )
-        logger.info("Video to audio transformation was successful")
-        logger.info(result.stdout)
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error occurred: {e}")
-        logger.error(f"Error output: {e.stderr}")
-
-
-def post_processing_transcribe_audio_to_text(context):
-    output_file_path_without_extension = f"{context.download_directory}/speech"
-    output_format_extension = "txt"
-    output_format_whisper_argument = "--output-txt"
-    output_file_path = f"{output_file_path_without_extension}.{output_format_extension}"
-    if Path(output_file_path).exists():
-        logger.debug(f"Transcribed output Speech file already exists: {output_file_path}")
-        return
-
-    # https://github.com/ggml-org/whisper.cpp/tree/master/examples/cli
-    # --print-colors
-
-    whisper_model_name = "base"
-    lang = context.langs[0]
-    if lang == "en":
-        # The .en models (tiny.en, base.en, small.en, medium.en) are English-only and will always translate to English
-        whisper_model_name = "base.en"
-
-    # Get the brew prefix for whisper-cpp
-    brew_prefix = subprocess.check_output(
-        ["brew", "--prefix", "whisper-cpp"],
-        text=True
-    ).strip()
-
-    whisper_model = f"{brew_prefix}/models/ggml-{whisper_model_name}.bin"
-    command = [
-        "whisper-cli",
-        "--model", whisper_model,
-        "--no-timestamps",  # no timestamp left to the text
-        # "--print-colors",  # confidence  - highlight words with high or low confidence:
-        "--processors", "4",  # number of processors to use during computation
-        "--language", lang,  # language
-        "--output-file", output_file_path_without_extension,  # without the extension
-        output_format_whisper_argument,
-        "-f", context.mode.audio_path
-    ]
-
-    try:
-        subprocess.run(command)
-        logger.info("Audio Speech to text transformation was successful")
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error occurred: {e}")
-        logger.error(f"Error output: {e.stderr}")
 
 
 def main():
     parser = ArgumentParserNoUsage(description='Get video transcripts')
-    parser.add_argument('url', help='Video URL')
+    parser.add_argument('url', help='URI (Url or file path)')
     parser.add_argument('--langs', '-l',
                         help='The languages codes separated by a comma. Example for Spanish and French: es,fr'
                         )
@@ -522,21 +327,21 @@ def main():
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
 
-    url = args.url
+    uri = args.url
 
-    url_info = get_url_info(url)
+    uri_info = parse_uri(uri)
 
-    # Determine the output directory
+    # Determine the runtime directory (download for social url)
     # Note that if we want to add a timestamp, we
     # * need to get the info.json first
     # or, we can add `%(upload_date>%Y-%m-%d)s` in a template
-    download_directory = f"out/{url_info.service_name}/{url_info.id}"
+    runtime_directory = f"out/{uri_info.service_name}/{uri_info.id}"
 
     # orig is a lang suffix of YouTube
     # it the video is in nl, you get 2 subtitles, `nl` and `nl-orig`
     orig = "orig"
     if args.langs is None:
-        if url_info.service_name == "youtube":
+        if uri_info.service_name == "youtube":
             langs = [orig]
         else:
             # we let yt-dlp decide, normally the spoken language of the video
@@ -546,23 +351,24 @@ def main():
 
     # context building
     context = Context(
-        video=url_info,
+        video=uri_info,
         langs=langs,
-        download_directory=download_directory,
+        runtime_directory=runtime_directory,
         mode=ModeInfo(type=args.mode),
         verbose=args.verbose
     )
 
     # Compute derived properties
+    # file type
     if context.mode.type == 'video':
         context.mode.file_extension = "mp4"
         context.mode.file_name = f"{context.mode.type}.{context.mode.file_extension}"
-        context.mode.video_path = f"{context.download_directory}/{context.mode.file_name}"
-        context.mode.audio_path = f"{context.download_directory}/audio.wav"
+        context.mode.video_path = f"{context.runtime_directory}/{context.mode.file_name}"
+        context.mode.audio_path = f"{context.runtime_directory}/audio.wav"
     elif context.mode.type == 'audio':
         context.mode.file_extension = "mp3"
         context.mode.file_name = f"{context.mode.type}.{context.mode.file_extension}"
-        context.mode.audio_path = f"{context.download_directory}/{context.mode.file_name}"
+        context.mode.audio_path = f"{context.runtime_directory}/{context.mode.file_name}"
         raise ValueError(f"{context.mode.type} not yet implemented")
 
     final_error = None
@@ -583,7 +389,7 @@ def main():
         print(f"The transcript is:\n")
     else:
         print(f"Transcript files:")
-    for item in Path(context.download_directory).iterdir():
+    for item in Path(context.runtime_directory).iterdir():
         item: Path
         if not item.is_file():
             continue
@@ -599,9 +405,9 @@ def main():
         if not item.suffix.lower() == '.txt':
             continue
         if not langs is None:
-            subtitleLanguage = Path(item.name).stem.split(".", 1)[1]
-            askedLang = langs[0]
-            if not askedLang in subtitleLanguage.lower():
+            subtitle_language = Path(item.name).stem.split(".", 1)[1]
+            asked_lang = langs[0]
+            if not asked_lang in subtitle_language.lower():
                 continue
         print(item.read_text(encoding="utf-8"))
         break

@@ -94,7 +94,7 @@ Forecast: {period["detailedForecast"]}
 
     return "\n---\n".join(forecasts)
 
-def main():
+def mcp_run():
     # Initialize and run the server
     # mcp.run(transport="stdio")
 
@@ -111,7 +111,3 @@ def main():
         ssl_certfile="./certificate.crt",
     )
 
-
-
-if __name__ == "__main__":
-    main()
