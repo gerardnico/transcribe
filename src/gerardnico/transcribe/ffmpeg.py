@@ -1,25 +1,24 @@
 import subprocess
 from pathlib import Path
 
-from src.gerardnico.transcribe.cli import logger
+from src.gerardnico.transcribe.api import Request
+import logging
+logger = logging.getLogger(__name__)
 
+def video_to_audio(request: Request):
 
-def video_to_audio(context):
-    if context.mode.type == 'audio':
-        raise ValueError("Audio processing not yet implemented")
-
-    if Path(context.mode.audio_path).exists():
-        logger.debug(f"Audio file already exist: {context.mode.audio_path}")
+    if Path(request.paths.audio_path).exists():
+        logger.debug(f"Audio file already exist: {request.paths.audio_path}")
         return
 
     command = [
         "ffmpeg",
-        "-i", f"{context.mode.video_path}",
+        "-i", f"{request.paths.video_path}",
         "-ar", "16000",
         "-ac", "1",
         "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
         "-c:a", "pcm_s16le",
-        context.mode.audio_path
+        request.paths.audio_path
     ]
 
     try:

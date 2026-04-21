@@ -2,23 +2,24 @@ from pathlib import Path
 
 import yt_dlp
 
-from src.gerardnico.transcribe.cli import Context, logger
+from src.gerardnico.transcribe.api import Request
+import logging
+logger = logging.getLogger(__name__)
 
-
-def execute_yt_dlp(context: Context):
+def execute_yt_dlp(request: Request):
     """
     Execute yt-dlp
     """
     args = []
 
     # Download video?
-    if get_download_video(context):
+    if get_download_video(request):
         args += [
             # https://github.com/yt-dlp/yt-dlp#preset-aliases
-            "-t", context.mode.file_extension,
+            "-t", request.paths.file_extension,
             # indicate a template for the output file names
             # https://github.com/yt-dlp/yt-dlp#output-template
-            "-o", context.mode.file_name
+            "-o", request.paths.file_name
         ]
     else:
         args += [
@@ -47,7 +48,7 @@ def execute_yt_dlp(context: Context):
     # with yt_dlp.YoutubeDL(ydl_opts) as ydl:
     #    info = ydl.extract_info(url, download=False)
 
-    if not context.verbose:
+    if not request.verbose:
         args += [
             "--quiet",
             "--no-warnings"
@@ -59,8 +60,8 @@ def execute_yt_dlp(context: Context):
     # --sub-langs "en.*,ja" (where "en.*" is a regex pattern that matches "en" followed by 0 or more of any character).
     # You can prefix the language code with a "-" to exclude it from the requested languages, e.g.
     # --sub-langs all,-live_chat. Use --list-subs for a list of available language tags
-    if not context.langs is None:
-        for lang in context.langs:
+    if not request.langs is None:
+        for lang in request.langs:
             if lang == orig:
                 found_orig = True
                 langs_regexp.append(f"{case_insensitivity_flag}.*-{orig}.*")
@@ -68,7 +69,7 @@ def execute_yt_dlp(context: Context):
                 langs_regexp.append(f"{case_insensitivity_flag}{lang}.*")
         langs_ytd = lang_separator.join(langs_regexp)
         # Don't download the orig subtitle if not specified
-        if found_orig == False and context.video.service_name == "youtube":
+        if found_orig == False and request.service_name == "youtube":
             langs_ytd = f"{langs_ytd}{lang_separator}-.*-{orig}.*"
         args += [
             "--sub-langs",
@@ -108,23 +109,23 @@ def execute_yt_dlp(context: Context):
         # the home path after download is finished.
         # This option is ignored if --output is an absolute path
         # Specify the working directory (home)
-        "--paths", f"home:{context.runtime_directory}",
+        "--paths", f"home:{request.paths.runtime_directory}",
         # put all temporary files in "wd\tmp"
         "--paths", "temp:tmp",
         # put all subtitle files in home/working directory
         "--paths", "subtitle:.",
-        context.video.uri
+        request.uri
     ]
     logger.info("Command: yt-dlp " + " ".join(str(x) for x in args))
     yt_dlp.main(args)
 
 
-def get_download_video(context):
-    if context.mode.type == 'text':
-        logger.info(f"Text mode: no video download")
+def get_download_video(request: Request):
+    if not request.download:
+        logger.info(f"No download: no video download")
         return False
-    if Path(context.mode.video_path).exists():
-        logger.info(f"File {context.mode.video_path} already downloaded")
+    if Path(request.paths.video_path).exists():
+        logger.info(f"File {request.paths.video_path} already downloaded")
         return False
     logger.info(f"No video found, video mode: download video")
     return True

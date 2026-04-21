@@ -4,13 +4,19 @@ TikTok Transcript Downloader using yt-dlp
 Downloads and formats transcripts from TikTok videos
 """
 import argparse
-import sys
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional, List
-from urllib.parse import ParseResult
 import logging
+import os
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Optional
+
+import typer
 import webvtt
+
+from src.gerardnico.transcribe.api import Request, Paths
+
+app = typer.Typer()
 
 from src.gerardnico.transcribe.ffmpeg import video_to_audio
 from src.gerardnico.transcribe.social import execute_yt_dlp
@@ -33,36 +39,18 @@ def _require_dependency(pkg: str, version: str):
             f"but {installed} is installed"
         )
 
-# Info extract from the uru
-@dataclass
-class UriInfo:
-    # The url apex name
-    apex_name: str
-    # The service (YouTube, ...)
-    service_name: str
-    # The id
-    id: str
-    # The parsed result
-    uri: ParseResult
-
-
-@dataclass
-class ModeInfo:
-    type: str
-    file_name: Optional[str] = None
-    file_extension: Optional[str] = None
-    video_path: Optional[str] = None
-    # The resulting audio file path
-    audio_path: Optional[str] = None
-
 
 @dataclass
 class Context:
-    video: UriInfo
-    langs: List[str]
-    runtime_directory: str
-    mode: ModeInfo
-    verbose: bool
+    request: Request
+
+
+@dataclass
+class CliArgs:
+    uri: str
+    lang: Optional[str] = field(default=None)
+    verbose: bool = field(default=False)
+    download: bool = field(default=False)
 
 
 def clean_duplicate_lines(lines):
@@ -210,25 +198,25 @@ def get_transcription(context, vtt_file_count):
     if not vtt_file_count == 0:
         logger.debug(f"  * Subtitle file found, no transcription")
         return False
-    if context.mode.type != "video":
+    if context.paths.type != "video":
         logger.debug(f"  * Not a video mode, no transcription")
         return False
-    if not Path(context.mode.video_path).exists():
+    if not Path(context.paths.video_path).exists():
         logger.debug(f"  * Video is not present, no transcription")
         return False
     return True
 
 
-def post_processing(context: Context) -> None:
+def post_processing(request: Request) -> None:
     """
     Scan all files in a directory
     * extract clean text, and save as .txt files.
     * transcribe if needed
 
     Args:
-        context: The context object
+        request: The context object
     """
-    directory = context.runtime_directory
+    directory = request.paths.runtime_directory
     directory_path = Path(directory)
 
     if not directory_path.exists():
@@ -247,33 +235,35 @@ def post_processing(context: Context) -> None:
         logger.info(f"Processed {vtt_file_count} VTT file(s)")
 
     logger.info(f"Trying to transcribe")
-    if get_transcription(context, vtt_file_count):
-        video_to_audio(context)
-        post_processing_transcribe_audio_to_text(context)
+    if get_transcription(request, vtt_file_count):
+        video_to_audio(request)
+        post_processing_transcribe_audio_to_text(request)
 
 
-def parse_uri(uri) -> UriInfo:
-    parsed_uri: ParseResult = urlparse(uri)
-    apex_name = parsed_uri.netloc # authority
+def build_request(cli_args: CliArgs) -> Request:
+    parsed_uri: ParseResult = urlparse(cli_args.uri)
+    if not parsed_uri.scheme or parsed_uri.scheme == "file":
+        service_name = "file"
+    else:
+        apex_name = parsed_uri.netloc  # authority
 
-    # remove www. if present
-    if apex_name.startswith("www."):
-        apex_name = apex_name[4:]
+        # remove www. if present
+        if apex_name.startswith("www."):
+            apex_name = apex_name[4:]
 
-    # service name is the first part before the dot
-    service_name = apex_name.split('.')[0]
+        # service name is the first part before the dot
+        service_name = apex_name.split('.')[0]
 
     # default id is empty
     id_value = ""
 
     # YouTube URL handling
-    if "youtube.com" in apex_name:
+    if service_name == "youtube":
         # YouTube video ID is usually in the 'v' query parameter
         query_params = parse_qs(parsed_uri.query)
         id_value = query_params.get('v', [''])[0]
-
     # TikTok URL handling
-    elif "tiktok.com" in apex_name:
+    elif service_name == "tiktok":
         # TikTok ID is made of username (without @) + last part of path
         path_parts = [p for p in parsed_uri.path.split('/') if p]
         if len(path_parts) != 3 or (not path_parts[0].startswith('@')) or path_parts[1] != 'video':
@@ -281,7 +271,7 @@ def parse_uri(uri) -> UriInfo:
         username = path_parts[0][1:]  # remove @
         video_id = path_parts[2]
         id_value = f"{username}-{video_id}"
-    elif "x.com" in apex_name:
+    elif service_name == "x" or service_name == "twitter":
         # https://x.com/forrestpknight/status/2012561898097594545
         path_parts = [p for p in parsed_uri.path.split('/') if p]
         if len(path_parts) != 3 and path_parts[1] != 'status':
@@ -289,107 +279,98 @@ def parse_uri(uri) -> UriInfo:
         username = path_parts[0]
         video_id = path_parts[2]
         id_value = f"{username}-{video_id}"
+    elif service_name == "file":
+        id_value = f'{parsed_uri.path}'
+    else:
+        raise ValueError(f"{service_name} not yet supported")
 
-    return UriInfo(
-        apex_name=apex_name,
-        service_name=service_name,
-        id=id_value,
-        uri=parsed_uri
-    )
+    # Determine the runtime directory (download for social url)
+    # Note that if we want to add a timestamp, we
+    # * need to get the info.json first
+    # or, we can add `%(upload_date>%Y-%m-%d)s` in a template
+    transcribe_home = os.environ.get('TRANSCRIBE_HOME')
+    if not transcribe_home:
+        transcribe_home = os.environ.get('HOME') + ".transcribe"
+    runtime_directory = f"{transcribe_home}/{service_name}/{id_value}"
 
+    # orig is a lang suffix of YouTube
+    # it the video is in nl, you get 2 subtitles, `nl` and `nl-orig`
+    orig = "orig"
+    if cli_args.lang is None:
+        if service_name == "youtube":
+            langs = [orig]
+        else:
+            # we let yt-dlp decide, normally the spoken language of the video
+            langs = None
+    else:
+        langs = cli_args.lang.split(",")
 
-def main():
-    parser = ArgumentParserNoUsage(description='Get video transcripts')
-    parser.add_argument('url', help='URI (Url or file path)')
-    parser.add_argument('--langs', '-l',
-                        help='The languages codes separated by a comma. Example for Spanish and French: es,fr'
-                        )
-    parser.add_argument('--mode', '-m',
-                        default='text',
-                        choices=['text', 'audio', 'video'],
-                        help='The mode of execution: text (download the text subtitle file only) or video (download the video and transcribe)'
-                        )
-    parser.add_argument('--agent', '-a', action='store_true',
-                        help='If this is an agent, the transcript is given textually to stdout'
-                        )
-    parser.add_argument('--verbose', '-v',
-                        action='store_true',
-                        help='Verbose mode'
-                        )
-
-    args = parser.parse_args()
+    # Compute derived properties
+    # file type
+    if parsed_uri.scheme != 'file':
+        # social media request
+        file_extension = "mp4"
+        file_name = f"video.{file_extension}"
+        video_path = f"{runtime_directory}/{file_name}"
+        audio_path = f"{runtime_directory}/audio.wav"
+    else:
+        raise ValueError(f"File Scheme not yet implemented")
 
     logging_level = logging.ERROR
-    if args.verbose:
+    if cli_args.verbose:
         logging_level = logging.DEBUG
     logging.basicConfig(
         level=logging_level,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
 
-    uri = args.url
-
-    uri_info = parse_uri(uri)
-
-    # Determine the runtime directory (download for social url)
-    # Note that if we want to add a timestamp, we
-    # * need to get the info.json first
-    # or, we can add `%(upload_date>%Y-%m-%d)s` in a template
-    runtime_directory = f"out/{uri_info.service_name}/{uri_info.id}"
-
-    # orig is a lang suffix of YouTube
-    # it the video is in nl, you get 2 subtitles, `nl` and `nl-orig`
-    orig = "orig"
-    if args.langs is None:
-        if uri_info.service_name == "youtube":
-            langs = [orig]
-        else:
-            # we let yt-dlp decide, normally the spoken language of the video
-            langs = None
-    else:
-        langs = args.langs.split(",")
-
-    # context building
-    context = Context(
-        video=uri_info,
+    return Request(
+        uri=cli_args.uri,
+        id=id_value,
         langs=langs,
-        runtime_directory=runtime_directory,
-        mode=ModeInfo(type=args.mode),
-        verbose=args.verbose
+        paths=Paths(
+            runtime_directory=runtime_directory,
+            file_name=file_name,
+            video_path=video_path,
+            audio_path=audio_path
+        ),
+        verbose=cli_args.verbose,
+        service_name=service_name,
+        download=cli_args.download
     )
 
-    # Compute derived properties
-    # file type
-    if context.mode.type == 'video':
-        context.mode.file_extension = "mp4"
-        context.mode.file_name = f"{context.mode.type}.{context.mode.file_extension}"
-        context.mode.video_path = f"{context.runtime_directory}/{context.mode.file_name}"
-        context.mode.audio_path = f"{context.runtime_directory}/audio.wav"
-    elif context.mode.type == 'audio':
-        context.mode.file_extension = "mp3"
-        context.mode.file_name = f"{context.mode.type}.{context.mode.file_extension}"
-        context.mode.audio_path = f"{context.runtime_directory}/{context.mode.file_name}"
-        raise ValueError(f"{context.mode.type} not yet implemented")
+
+@app.command()
+def process(uri: str = typer.Argument(..., help='URI (URL or file path)'),
+            langs: Optional[str] = typer.Option(None, '-l', '--langs', help='Language codes (e.g., es,fr)'),
+            agent: bool = typer.Option(False, '-a', '--agent', help='Agent mode'),
+            verbose: bool = typer.Option(False, '-v', '--verbose', help='Verbose mode'),
+            download: bool = typer.Option(False, '-d', '--download', help='Download the video')
+            ):
+    """Transcribe audio/video from a URI"""
+
+    cli_args = CliArgs(uri=uri, lang=langs, verbose=verbose, download=download)
+    request = build_request(cli_args)
 
     final_error = None
     try:
         # Download subtitle and optionally the video
-        execute_yt_dlp(context)
+        execute_yt_dlp(request)
     except SystemExit as e:
         # We capture it as the error could be after that the transcript as been downloaded
         # example: processing thumbnail: ERROR: Preprocessing: Error opening output files: Invalid argument
         final_error = e
 
     # Post processing (vtt file, transcribe)
-    post_processing(context)
+    post_processing(request)
 
     # Result
-    is_agent: bool = args.agent
+    is_agent: bool = agent
     if is_agent:
         print(f"The transcript is:\n")
     else:
         print(f"Transcript files:")
-    for item in Path(context.runtime_directory).iterdir():
+    for item in Path(request.paths.runtime_directory).iterdir():
         item: Path
         if not item.is_file():
             continue
@@ -418,4 +399,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    app()

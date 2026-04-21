@@ -1,7 +1,8 @@
 import subprocess
 from pathlib import Path
 
-from src.gerardnico.transcribe.cli import logger
+import logging
+logger = logging.getLogger(__name__)
 
 
 def post_processing_transcribe_audio_to_text(context):
@@ -17,7 +18,7 @@ def post_processing_transcribe_audio_to_text(context):
     # --print-colors
 
     whisper_model_name = "base"
-    lang = context.langs[0]
+    lang = context.lang[0]
     if lang == "en":
         # The .en models (tiny.en, base.en, small.en, medium.en) are English-only and will always translate to English
         whisper_model_name = "base.en"
@@ -38,7 +39,7 @@ def post_processing_transcribe_audio_to_text(context):
         "--language", lang,  # language
         "--output-file", output_file_path_without_extension,  # without the extension
         output_format_whisper_argument,
-        "-f", context.mode.audio_path
+        "-f", context.paths.audio_path
     ]
 
     try:

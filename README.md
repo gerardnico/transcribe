@@ -30,16 +30,20 @@ transcribe https://www.tiktok.com/@xxx/video/xxx
 
 ```json
 {
-    "mcpServers": {
-        "weather": {
-            "command": "C:\\Users\\name\\.local\\bin\\uv.exe",
-            "args": [
-                "--directory",
-                "C:\\Users\\name\\code\\transcribe",
-                "run",
-                "src\\gerardnico\\transcribe\\mcp\\mcp_server.py"
-            ]
-        }
+  "mcpServers": {
+    "weather": {
+      "command": "C:\\Users\\name\\.local\\bin\\uv.exe",
+      "args": [
+        "--directory",
+        "C:\\Users\\name\\code\\transcribe",
+        "run",
+        "src\\gerardnico\\transcribe\\mcp\\mcp_server.py"
+      ]
     }
+  }
 }
 ```
+
+## Conf
+
+* `TRANSCRIBE_HOME` (default to `$HOME/.transcribe`): the runtime path

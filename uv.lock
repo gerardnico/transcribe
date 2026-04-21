@@ -999,6 +999,7 @@ dependencies = [
     { name = "httpx" },
     { name = "mcp", extra = ["cli"] },
     { name = "packaging" },
+    { name = "typer" },
     { name = "webvtt-py" },
     { name = "yt-dlp", extra = ["curl-cffi", "default"] },
 ]
@@ -1013,6 +1014,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.27.0" },
     { name = "packaging", specifier = "==26.0" },
+    { name = "typer", specifier = ">=0.24.1" },
     { name = "webvtt-py", specifier = "==0.5.1" },
     { name = "yt-dlp", extras = ["default", "curl-cffi"], specifier = "==2026.3.17" },
 ]
