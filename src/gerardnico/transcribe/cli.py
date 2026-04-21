@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 @typerCli.command()
 def info(uri: str = typer.Argument(..., help='URI (URL or file path)')):
+    """Get info"""
     cli_args = TranscribeArgs(uri=uri)
     request = build_request(cli_args)
     pprint(request)
@@ -61,20 +62,21 @@ def get(uri: str = typer.Argument(..., help='URI (URL or file path)'),
         raise response.error
 
 
-@typerCli.command(name="mcp")
-def mcp_command(transport: McpTransport = typer.Option(McpTransport.stdio, help="Transport protocol")):
+@typerCli.command()
+def mcp(transport: McpTransport = typer.Option(McpTransport.stdio, help="Transport protocol")):
+    """Start a Mcp Server"""
     logger.info(f"{transport.name} Mcp server started")
-    mcp = get_mcp_server()
+    mcpServer = get_mcp_server()
     # Initialize and run the server
     if transport == McpTransport.stdio:
-        mcp.run(transport="stdio")
+        mcpServer.run(transport="stdio")
         return
 
-        # http://127.0.0.1:8000/mcp
+    # http://127.0.0.1:8000/mcp
     # same as mcp.run(transport="streamable-http")
     # for https://127.0.0.1:8000/mcp (mandatory)
     # see task cert to generate the certs
-    mcp_app = mcp.streamable_http_app()  # or mcp.get_asgi_app()
+    mcp_app = mcpServer.streamable_http_app()  # or mcp.get_asgi_app()
     uvicorn.run(
         mcp_app,
         host="0.0.0.0",
@@ -83,6 +85,9 @@ def mcp_command(transport: McpTransport = typer.Option(McpTransport.stdio, help=
         ssl_certfile="./certificate.crt",
     )
 
+def main():
+    """Entry point for the CLI"""
+    typerCli()
 
 if __name__ == '__main__':
-    typerCli()
+    main()

@@ -11,15 +11,15 @@ tasks:
     cmds:
       - |
         uv run src\gerardnico\transcribe\cli.py
+  install:
+    cmds:
+      - |
+        pipx install -e --force .
   test:
     cmds:
       -|
       # verbose: uv run pytest -v
       uv run pytest
-  mcp-inspect:
-    cmds:
-      - |
-        uv run fastmcp inspect src\gerardnico\transcribe\cli.py mcp
   cert:
     cmds:
       - |

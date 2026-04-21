@@ -18,8 +18,10 @@ def test_tiktok_url_request():
     cli_args = TranscribeArgs(uri="https://www.tiktok.com/@beanulaegzo/video/7630306225086876959")
     request = build_request(cli_args)
     assert request.service_name == "tiktok"
-    home = os.environ.get('HOME')
-    assert request.paths.runtime_directory == Path(f"{home}/.transcribe/tiktok/beanulaegzo-7630306225086876959")
+    home = os.environ.get('TRANSCRIBE_HOME')
+    if not home:
+        home = f"{os.environ.get('HOME')}/.transcribe"
+    assert request.paths.runtime_directory == Path(f"{home}/tiktok/beanulaegzo-7630306225086876959")
     assert request.paths.file_extension == "mp4"
 
 
