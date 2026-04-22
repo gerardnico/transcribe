@@ -33,24 +33,26 @@ async def test_mcp_stdio_command():
     """
 
     # We return the transcript file if already present
-    # That's what we use to avoid making a external call for now
+    # That's what we use to avoid making an external call for now
 
     # Test in process test
-    uri = "https://www.tiktok.com/@user/video/id"
-    fixtures_home = "./tests/fixtures/home"
+    userId = "user"
+    postId = "id"
+    uri = "https://www.tiktok.com/@%s/video/%s" % (userId, postId)
+    transcribe_home = "./tests/fixtures/home"
     contextBuilder = ContextBuilder()
-    contextBuilder.home = str(fixtures_home)
+    contextBuilder.home = str(transcribe_home)
     contextBuilder.uri = uri
     context = contextBuilder.build()
     if not context.request:
         raise Exception("Request should not be null")
     response = get_transcript_from_request(context.request)
-    assert response.path == Path(fixtures_home, "tiktok", "user-id", "subtitle.eng-US.txt")
+    assert response.path == Path(transcribe_home, "tiktok", "%s-%s" % (userId, postId), "subtitle.eng-US.txt")
 
     # Test cli call - run as a subprocess
     server_params = StdioServerParameters(
         command="uv",
-        args=["run", str(Path("src/gerardnico/transcribe/cli.py")), "--home", fixtures_home, "mcp"],
+        args=["run", str(Path("src/gerardnico/transcribe/cli.py")), "--home", transcribe_home, "mcp"],
     )
 
     async with stdio_client(server_params) as (read, write):
@@ -64,6 +66,6 @@ async def test_mcp_stdio_command():
             # Call a tool
             result = await session.call_tool("get_transcript", {"uri": uri})
             assert result is not None
-            resultContent = result.content[0]
-            assert isinstance(resultContent, TextContent)
-            assert resultContent.text == "TikTok transcript"
+            expectedText = "TikTok transcript"
+            assert result.content == [TextContent(type="text", text=expectedText)]
+
