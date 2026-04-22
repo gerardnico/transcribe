@@ -48,6 +48,8 @@ transcribe mcp
 transcribe mcp --transport http --host "0.0.0.0"
 ```
 
+
+
 ## Conf
 
 ### TRANSCRIBE_HOME
@@ -92,3 +94,9 @@ $env:AUTHORIZED_EMAILS = "user1@example.com,user2@example.com"
 
 - `GOOGLE_CLIENT_ID`: Google OAuth client ID used to validate incoming bearer ID tokens.
 - `AUTHORIZED_EMAILS`: comma-separated list of allowed user emails.
+
+## Support
+
+### Claude Desktop
+
+* Found in `claude.ai-web.log`: Localhost URLs cannot be used because our servers cannot reach your local machine. Provide a publicly accessible MCP server URL.

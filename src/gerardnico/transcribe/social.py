@@ -1,3 +1,5 @@
+import contextlib
+import io
 import logging
 
 import yt_dlp
@@ -5,6 +7,7 @@ import yt_dlp
 from gerardnico.transcribe.api import Request
 
 logger = logging.getLogger(__name__)
+
 
 
 def execute_yt_dlp(request: Request):
@@ -118,4 +121,19 @@ def execute_yt_dlp(request: Request):
         request.uri
     ]
     logger.info("Command: yt-dlp " + " ".join(str(x) for x in args))
-    yt_dlp.main(args)
+
+    # execution and stdout/stderr capture
+    stdout_buf = io.StringIO()
+    stderr_buf = io.StringIO()
+    final_error = None
+    with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
+        try:
+            yt_dlp.main(args)
+        except SystemExit as e:
+            # We capture it as the error could be after that the transcript as been downloaded
+            # example: processing thumbnail: ERROR: Preprocessing: Error opening output files: Invalid argument
+            final_error = e
+
+    if final_error is not None:
+        # we create another error with the stdout for more context
+        raise Exception(f"Transcript download error has occurred: {stdout_buf.getvalue()} {stderr_buf.getvalue()}")

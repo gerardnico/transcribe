@@ -26,7 +26,7 @@ def get_transcript_from_request(request: Request) -> Response:
     try:
         # Download subtitle and optionally the video
         execute_yt_dlp(request)
-    except SystemExit as e:
+    except Exception as e:
         # We capture it as the error could be after that the transcript as been downloaded
         # example: processing thumbnail: ERROR: Preprocessing: Error opening output files: Invalid argument
         final_error = e

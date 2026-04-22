@@ -56,7 +56,7 @@ class Context:
 @dataclass
 class Response:
     path: Path | None
-    error: SystemExit | None = field(default=None)
+    error: Exception | None = field(default=None)
 
 
 # Not the localhost name because there is a DNS resolution
@@ -196,6 +196,7 @@ class ContextBuilder:
             raise ValueError(f"{service_name} not yet supported")
 
         runtime_directory = Path(f"{transcribe_home}/{service_name}/{id_value}")
+        runtime_directory.mkdir(parents=True, exist_ok=True)
 
         # orig is a lang suffix of YouTube
         # it the video is in nl, you get 2 subtitles, `nl` and `nl-orig`
