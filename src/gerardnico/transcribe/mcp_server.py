@@ -4,8 +4,8 @@
 # https://gofastmcp.com/getting-started/welcome
 from mcp.server.fastmcp import FastMCP
 
-from gerardnico.transcribe.api import TranscribeArgs
-from gerardnico.transcribe.transcribe import build_request, get_transcript_from_request
+from gerardnico.transcribe.api import ContextBuilder
+from gerardnico.transcribe.transcribe import get_transcript_from_request
 
 
 def get_mcp_server():
@@ -23,9 +23,10 @@ def get_mcp_server():
         Args:
             uri: An uri (URI, URL or file path)
         """
-        cli_args = TranscribeArgs(uri=uri)
-        request = build_request(cli_args)
-        response = get_transcript_from_request(request)
+        contextBuilder = ContextBuilder()
+        contextBuilder.uri=uri
+        context = contextBuilder.build()
+        response = get_transcript_from_request(context)
         if not response.error:
             return f"Error: {str(response.error)}"
         if not response.path:

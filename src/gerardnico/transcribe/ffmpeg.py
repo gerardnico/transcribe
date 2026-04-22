@@ -1,11 +1,11 @@
 import subprocess
 from pathlib import Path
 
-from gerardnico.transcribe.api import Request
+from gerardnico.transcribe.api import Context
 import logging
 logger = logging.getLogger(__name__)
 
-def video_to_audio(request: Request):
+def video_to_audio(request: Context):
 
     if Path(request.paths.audio_path).exists():
         logger.debug(f"Audio file already exist: {request.paths.audio_path}")

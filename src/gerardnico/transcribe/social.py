@@ -2,11 +2,11 @@ from pathlib import Path
 
 import yt_dlp
 
-from gerardnico.transcribe.api import Request
+from gerardnico.transcribe.api import Context
 import logging
 logger = logging.getLogger(__name__)
 
-def execute_yt_dlp(request: Request):
+def execute_yt_dlp(request: Context):
     """
     Execute yt-dlp
     """
@@ -120,7 +120,7 @@ def execute_yt_dlp(request: Request):
     yt_dlp.main(args)
 
 
-def get_download_video(request: Request):
+def get_download_video(request: Context):
     if not request.download:
         logger.info(f"No download: no video download")
         return False

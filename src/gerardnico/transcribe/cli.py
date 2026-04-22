@@ -10,39 +10,44 @@ import typer
 import uvicorn
 from rich.pretty import pprint
 
-from gerardnico.transcribe.api import McpTransport, TranscribeArgs
+from gerardnico.transcribe.api import McpTransport, ContextBuilder
 from gerardnico.transcribe.mcp_server import get_mcp_server
-from gerardnico.transcribe.transcribe import build_request, get_transcript_from_request, list_transcripts
+from gerardnico.transcribe.transcribe import get_transcript_from_request, list_transcripts
 
 typerCli = typer.Typer()
 
 logger = logging.getLogger(__name__)
 
 
-
 @typerCli.command()
-def info(uri: str = typer.Argument(..., help='URI (URL or file path)')):
-    """Get info"""
-    cli_args = TranscribeArgs(uri=uri)
-    request = build_request(cli_args)
-    pprint(request)
+def info(
+    ctx: typer.Context,
+    uri: str = typer.Argument(..., help='URI (URL or file path)')
+):
+    """Get information about a transcript"""
+    contextBuilder: ContextBuilder = ctx.obj
+    contextBuilder.uri = uri
+    context = contextBuilder.build()
+    pprint(context)
     print("Local Transcripts:")
-    list_transcripts(request)
+    list_transcripts(context)
 
 
 @typerCli.command()
-def get(uri: str = typer.Argument(..., help='URI (URL or file path)'),
-        langs: Optional[str] = typer.Option(None, '-l', '--langs', help='Language codes (e.g., es,fr)'),
-        agent: bool = typer.Option(False, '-a', '--agent', help='Agent mode'),
-        verbose: bool = typer.Option(False, '-v', '--verbose', help='Verbose mode'),
-        download: bool = typer.Option(False, '-ds', '--download-source', help='Download the source video')
-        ):
-    """Transcribe audio/video from a URI"""
-
-    cli_args = TranscribeArgs(uri=uri, lang=langs, verbose=verbose, download_source=download)
-    request = build_request(cli_args)
-
-    response = get_transcript_from_request(request)
+def get(
+    ctx: typer.Context,
+    uri: str = typer.Argument(..., help='URI (URL or file path)'),
+    langs: Optional[str] = typer.Option(None, '-l', '--langs', help='Language codes (e.g., es,fr)'),
+    agent: bool = typer.Option(False, '-a', '--agent', help='Agent mode'),
+    download: bool = typer.Option(False, '-ds', '--download-source', help='Download the source video')
+):
+    """Return a transcript from an audio/video from a URI"""
+    contextBuilder: ContextBuilder = ctx.obj
+    contextBuilder.uri = uri
+    contextBuilder.lang = langs
+    contextBuilder.download_source = download
+    context = contextBuilder.build()
+    response = get_transcript_from_request(context)
 
     # Result
     is_agent: bool = agent
@@ -52,10 +57,10 @@ def get(uri: str = typer.Argument(..., help='URI (URL or file path)'),
         if actual_transcript_path:
             print(actual_transcript_path.read_text(encoding="utf-8"))
         else:
-            raise FileNotFoundError(f"No transcript found at {request.paths.runtime_directory}")
+            raise FileNotFoundError(f"No transcript found at {context.paths.runtime_directory}")
     else:
         logger.info(f"Transcript files:")
-        list_transcripts(request)
+        list_transcripts(context)
 
     # Raise if any error
     if response.error is not None and response.error.code != 0:
@@ -63,7 +68,8 @@ def get(uri: str = typer.Argument(..., help='URI (URL or file path)'),
 
 
 @typerCli.command()
-def mcp(transport: McpTransport = typer.Option(McpTransport.stdio, help="Transport protocol")):
+def mcp(
+    transport: McpTransport = typer.Option(McpTransport.stdio, help="Transport protocol")):
     """Start a Mcp Server"""
     logger.info(f"{transport.name} Mcp server started")
     mcpServer = get_mcp_server()
@@ -85,9 +91,29 @@ def mcp(transport: McpTransport = typer.Option(McpTransport.stdio, help="Transpo
         ssl_certfile="./certificate.crt",
     )
 
-def main():
-    """Entry point for the CLI"""
+
+# By default, the callback is only executed before executing a command.
+# We use the name main as it's the same in the doc
+@typerCli.callback()
+def main(
+    ctx: typer.Context,
+    verbose: bool = typer.Option(False, '-v', '--verbose', help='Verbose mode')
+):
+    """
+    Transcribe all you want
+    """
+    # the above comment is shown in the help when no command is asked
+    context = ContextBuilder(verbose)
+    logger.info(f"About to execute command: {ctx.invoked_subcommand}")
+    ctx.obj = context  # user object
+
+
+def cli():
+    """
+    Entry point function for the CLI installation used in the pyproject.toml
+    """
     typerCli()
 
+
 if __name__ == '__main__':
-    main()
+    cli()
