@@ -16,6 +16,8 @@ out
 *.egg-info/
 __pycache__/
 
-# Key
+# Key/Cert
 *.key
 *.crt
+*.pem
+

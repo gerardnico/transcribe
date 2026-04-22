@@ -7,11 +7,10 @@ import logging
 from typing import Optional
 
 import typer
-import uvicorn
 from rich.pretty import pprint
 
 from gerardnico.transcribe.api import McpTransport, ContextBuilder
-from gerardnico.transcribe.mcp_server import get_mcp_server
+from gerardnico.transcribe.mcp_server import mcp_run
 from gerardnico.transcribe.transcribe import get_transcript_from_request, list_transcripts
 
 typerCli = typer.Typer()
@@ -77,25 +76,9 @@ def mcp(
     """Start a Mcp Server"""
     logger.info(f"{transport.name} Mcp server started")
     contextBuilder: ContextBuilder = ctx.obj
+    contextBuilder.transport = transport
     context = contextBuilder.build()
-    mcpServer = get_mcp_server(context.service.home_directory)
-    # Initialize and run the server
-    if transport == McpTransport.stdio:
-        mcpServer.run(transport="stdio")
-        return
-
-    # http://127.0.0.1:8000/mcp
-    # same as mcp.run(transport="streamable-http")
-    # for https://127.0.0.1:8000/mcp (mandatory)
-    # see task cert to generate the certs
-    mcp_app = mcpServer.streamable_http_app()  # or mcp.get_asgi_app()
-    uvicorn.run(
-        mcp_app,
-        host="0.0.0.0",
-        port=8000,
-        ssl_keyfile="./private.key",
-        ssl_certfile="./certificate.crt",
-    )
+    mcp_run(context.service)
 
 
 # By default, the callback is only executed before executing a command.

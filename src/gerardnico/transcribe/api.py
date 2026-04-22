@@ -9,9 +9,20 @@ from urllib.parse import urlparse, ParseResult, parse_qs
 logger = logging.getLogger(__name__)
 
 
+# The mcp transport
+class McpTransport(str, Enum):
+    stdio = "stdio"
+    http = "http"
+
+
 @dataclass
 class Service:
     home_directory: Path = None
+    mcp_transport: McpTransport = McpTransport.stdio
+    oauth2_client_id: str | None = None
+    oauth2_authorized_emails: set[str] | None = None
+    ssl_cert_file: Path | None = None
+    ssl_key_file: Path | None = None
 
 
 @dataclass
@@ -47,12 +58,6 @@ class Response:
     error: SystemExit | None = field(default=None)
 
 
-# The mcp transport
-class McpTransport(str, Enum):
-    stdio = "stdio"
-    http = "http"
-
-
 class ContextBuilder:
     verbose: bool = False
     uri: str = None
@@ -60,6 +65,8 @@ class ContextBuilder:
     lang: Optional[str] = None
     # download the source file?
     downloadSource: bool = False
+    # mcp Transport
+    transport: McpTransport = McpTransport.stdio
 
     def __init__(self, verbose=False):
         self.verbose = verbose
@@ -87,7 +94,45 @@ class ContextBuilder:
             if not transcribe_home:
                 transcribe_home = os.environ.get('HOME') + "/.transcribe"
 
-        service = Service(home_directory=Path(transcribe_home))
+        client_id = None
+        authorized_emails = None
+        ssl_keyfile = None
+        ssl_cert_file = None
+        if self.transport == McpTransport.http:
+            client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+            if not client_id:
+                raise ValueError("GOOGLE_CLIENT_ID must be set for HTTP transport")
+
+            raw_emails = os.environ.get("AUTHORIZED_EMAILS", "").strip()
+            if not raw_emails:
+                raise ValueError("AUTHORIZED_EMAILS must be set for HTTP transport")
+
+            authorized_emails = {
+                email.strip().lower()
+                for email in raw_emails.split(",")
+                if email.strip()
+            }
+            if not authorized_emails:
+                raise ValueError("AUTHORIZED_EMAILS must contain at least one email address")
+
+            # certificates
+            # mandatory for local test because the server needs to be in ssl
+            sslCertsDir = Path("./ssl-certs")
+            expected_cert_path = Path(sslCertsDir, "cert.pem")
+            if expected_cert_path.exists():
+                ssl_cert_file = expected_cert_path
+                expected_key_path = Path(sslCertsDir, "key.pem")
+                if not expected_key_path.exists():
+                    raise ValueError(
+                        f"When a cert exists, a key file should be available and was not found at {expected_key_path}")
+
+        service = Service(
+            home_directory=Path(transcribe_home),
+            oauth2_client_id=client_id,
+            oauth2_authorized_emails=authorized_emails,
+            ssl_cert_file=ssl_cert_file,
+            ssl_key_file=ssl_keyfile
+        )
 
         # If we start the mcp server, there is no uri
         if not self.uri:

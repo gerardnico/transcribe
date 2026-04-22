@@ -75,3 +75,17 @@ $env:TRANSCRIBE_HOME = "C:\tmp\transcribe"
   }
 }
 ```
+
+### MCP HTTP OAuth2 (Google)
+
+When using HTTP transport for MCP, the server requires Google OAuth2 ID tokens and an email allowlist.
+
+Set these environment variables before starting the HTTP MCP server:
+
+```powershell
+$env:GOOGLE_CLIENT_ID = "<your-google-oauth-client-id>"
+$env:AUTHORIZED_EMAILS = "user1@example.com,user2@example.com"
+```
+
+- `GOOGLE_CLIENT_ID`: Google OAuth client ID used to validate incoming bearer ID tokens.
+- `AUTHORIZED_EMAILS`: comma-separated list of allowed user emails.
