@@ -1,25 +1,26 @@
-from pathlib import Path
+import logging
 
 import yt_dlp
 
-from gerardnico.transcribe.api import Context
-import logging
+from gerardnico.transcribe.api import Request
+
 logger = logging.getLogger(__name__)
 
-def execute_yt_dlp(request: Context):
+
+def execute_yt_dlp(request: Request):
     """
-    Execute yt-dlp
+    Execute the yt-dlp command
     """
     args = []
 
     # Download video?
-    if get_download_video(request):
+    if request.download:
         args += [
             # https://github.com/yt-dlp/yt-dlp#preset-aliases
-            "-t", request.paths.file_extension,
+            "-t", request.file_extension,
             # indicate a template for the output file names
             # https://github.com/yt-dlp/yt-dlp#output-template
-            "-o", request.paths.file_name
+            "-o", request.file_name
         ]
     else:
         args += [
@@ -109,7 +110,7 @@ def execute_yt_dlp(request: Context):
         # the home path after download is finished.
         # This option is ignored if --output is an absolute path
         # Specify the working directory (home)
-        "--paths", f"home:{request.paths.runtime_directory}",
+        "--paths", f"home:{request.runtime_directory}",
         # put all temporary files in "wd\tmp"
         "--paths", "temp:tmp",
         # put all subtitle files in home/working directory
@@ -118,14 +119,3 @@ def execute_yt_dlp(request: Context):
     ]
     logger.info("Command: yt-dlp " + " ".join(str(x) for x in args))
     yt_dlp.main(args)
-
-
-def get_download_video(request: Context):
-    if not request.download:
-        logger.info(f"No download: no video download")
-        return False
-    if Path(request.paths.video_path).exists():
-        logger.info(f"File {request.paths.video_path} already downloaded")
-        return False
-    logger.info(f"No video found, video mode: download video")
-    return True

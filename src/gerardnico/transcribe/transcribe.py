@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 
-from gerardnico.transcribe.api import Context, Response
+from gerardnico.transcribe.api import Response, Request
 from gerardnico.transcribe.ffmpeg import video_to_audio
 from gerardnico.transcribe.social import execute_yt_dlp
 from gerardnico.transcribe.vtt import post_processing_vtt
@@ -10,12 +10,12 @@ from gerardnico.transcribe.whisper import post_processing_transcribe_audio_to_te
 logger = logging.getLogger(__name__)
 
 
-def get_transcript_from_request(context: Context) -> Response:
-    if context.service_name == "file":
+def get_transcript_from_request(request: Request) -> Response:
+    if request.service_name == "file":
         raise Exception("File processing is not yet implemented")
 
     # Check if we have it locally
-    actual_transcript_path = get_transcript_from_runtime_dir(context)
+    actual_transcript_path = get_transcript_from_runtime_dir(request)
     if actual_transcript_path:
         return Response(
             path=actual_transcript_path
@@ -25,28 +25,28 @@ def get_transcript_from_request(context: Context) -> Response:
     final_error = None
     try:
         # Download subtitle and optionally the video
-        execute_yt_dlp(context)
+        execute_yt_dlp(request)
     except SystemExit as e:
         # We capture it as the error could be after that the transcript as been downloaded
         # example: processing thumbnail: ERROR: Preprocessing: Error opening output files: Invalid argument
         final_error = e
 
     # Post processing (vtt file, transcribe)
-    post_processing(context)
+    post_processing(request)
 
     return Response(
-        path=get_transcript_from_runtime_dir(context),
+        path=get_transcript_from_runtime_dir(request),
         error=final_error
     )
 
 
-def get_transcript_from_runtime_dir(context: Context):
+def get_transcript_from_runtime_dir(request: Request):
     """
-    :param context:
+    :param request: the request data
     :return: the local transcript path or empty if none was found
     """
     subtitle_path: Path | None = None
-    for item in context.paths.runtime_directory.iterdir():
+    for item in request.runtime_directory.iterdir():
         item: Path
         if not item.is_file():
             continue
@@ -55,9 +55,9 @@ def get_transcript_from_runtime_dir(context: Context):
             continue
         if not item.suffix.lower() == '.txt':
             continue
-        if not context.langs is None:
+        if not request.langs is None:
             subtitle_language = Path(item.name).stem.split(".", 1)[1]
-            asked_lang = context.langs[0]
+            asked_lang = request.langs[0]
             if not asked_lang in subtitle_language.lower():
                 continue
         subtitle_path = item
@@ -65,12 +65,12 @@ def get_transcript_from_runtime_dir(context: Context):
     return subtitle_path
 
 
-def list_transcripts(context: Context):
+def list_transcripts(request: Request):
     """
-    :param context:
+    :param request:
     :return: a list of local transcripts path
     """
-    directory = context.paths.runtime_directory
+    directory = request.runtime_directory
     if not directory.exists():
         print("No transcript found")
         return
@@ -85,16 +85,16 @@ def list_transcripts(context: Context):
         print(item)
 
 
-def post_processing(context: Context) -> None:
+def post_processing(request: Request) -> None:
     """
     Scan all files in a directory
     * extract clean text, and save as .txt files.
     * transcribe if needed
 
     Args:
-        context: The context object
+        request: The context object
     """
-    directory_path = context.paths.runtime_directory
+    directory_path = request.runtime_directory
 
     if not directory_path.exists():
         raise ValueError(f"Runtime Directory does not exist: {directory_path}")
@@ -112,16 +112,16 @@ def post_processing(context: Context) -> None:
         logger.info(f"Processed {vtt_file_count} VTT file(s)")
 
     logger.info(f"Trying to transcribe")
-    if get_speech_to_text(context, vtt_file_count):
-        video_to_audio(context)
-        post_processing_transcribe_audio_to_text(context)
+    if get_speech_to_text(request, vtt_file_count):
+        video_to_audio(request)
+        post_processing_transcribe_audio_to_text(request)
 
 
-def get_speech_to_text(context: Context, vtt_file_count):
+def get_speech_to_text(request: Request, vtt_file_count):
     if not vtt_file_count == 0:
         logger.debug(f"  * Subtitle file found, no speech to text needed")
         return False
-    if not Path(context.paths.video_path).exists():
+    if not Path(request.video_path).exists():
         logger.debug(f"  * Video is not present, no transcription")
         return False
     return True

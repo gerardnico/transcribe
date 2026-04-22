@@ -10,30 +10,35 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ContextPaths:
-    runtime_directory: Path
-    file_name: str = None
-    file_extension: str = None
-    video_path: Path = None
-    # The resulting audio file path
-    audio_path: Path = None
-    # home
+class Service:
     home_directory: Path = None
 
 
 @dataclass
-class Context:
+class Request:
     # The original uri
     uri: str
     langs: Optional[List[str]] | None
-    paths: ContextPaths
-    verbose: bool
+    runtime_directory: Path
+    file_name: str
+    file_extension: str
+    video_path: Path
+    # The resulting audio file path
+    audio_path: Path
     # The id
     id: str
     # The service (File, YouTube, ...)
     service_name: str
     # download the file?
     download: bool
+    # Verbose
+    verbose: bool = False
+
+
+@dataclass
+class Context:
+    service: Service
+    request: Request | None = None
 
 
 @dataclass
@@ -49,8 +54,8 @@ class McpTransport(str, Enum):
 
 
 class ContextBuilder:
-    verbose: bool
-    uri: str
+    verbose: bool = False
+    uri: str = None
     home: str | None = None
     lang: Optional[str] = None
     # download the source file?
@@ -71,6 +76,24 @@ class ContextBuilder:
         """
         Build a request object from cli/tool arguments
         """
+
+        # Determine the runtime directory (download for social url)
+        # Note that if we want to add a timestamp, we
+        # * need to get the info.json first
+        # or, we can add `%(upload_date>%Y-%m-%d)s` in a template
+        transcribe_home = self.home
+        if not transcribe_home:
+            transcribe_home = os.environ.get('TRANSCRIBE_HOME')
+            if not transcribe_home:
+                transcribe_home = os.environ.get('HOME') + "/.transcribe"
+
+        service = Service(home_directory=Path(transcribe_home))
+
+        # If we start the mcp server, there is no uri
+        if not self.uri:
+            return Context(
+                service
+            )
 
         parsed_uri: ParseResult = urlparse(self.uri)
         if not parsed_uri.scheme or parsed_uri.scheme == "file":
@@ -112,13 +135,6 @@ class ContextBuilder:
         else:
             raise ValueError(f"{service_name} not yet supported")
 
-        # Determine the runtime directory (download for social url)
-        # Note that if we want to add a timestamp, we
-        # * need to get the info.json first
-        # or, we can add `%(upload_date>%Y-%m-%d)s` in a template
-        transcribe_home = os.environ.get('TRANSCRIBE_HOME')
-        if not transcribe_home:
-            transcribe_home = os.environ.get('HOME') + "/.transcribe"
         runtime_directory = Path(f"{transcribe_home}/{service_name}/{id_value}")
 
         # orig is a lang suffix of YouTube
@@ -144,28 +160,21 @@ class ContextBuilder:
         else:
             raise ValueError(f"File Scheme not yet implemented")
 
-        home = self.home
-        if not home:
-            home = os.environ.get('TRANSCRIBE_HOME')
-            if not home:
-                home = f"{os.environ.get('HOME')}/.transcribe"
-
         return Context(
-            uri=self.uri,
-            id=id_value,
-            langs=langs,
-            paths=ContextPaths(
+            service,
+            Request(
+                uri=self.uri,
+                id=id_value,
+                langs=langs,
                 runtime_directory=runtime_directory,
                 file_extension=file_extension,
                 file_name=file_name,
                 video_path=video_path,
                 audio_path=audio_path,
-                home_directory=Path(home)
-            ),
-            verbose=self.verbose,
-            service_name=service_name,
-            download=self.downloadSource
-
+                service_name=service_name,
+                download=self.downloadSource,
+                verbose=self.verbose,
+            )
         )
 
     def set_uri(self, param):

@@ -30,7 +30,8 @@ def info(
     context = contextBuilder.build()
     pprint(context)
     print("Local Transcripts:")
-    list_transcripts(context)
+    assert context.request is not None
+    list_transcripts(context.request)
 
 
 @typerCli.command()
@@ -47,7 +48,9 @@ def get(
     contextBuilder.lang = langs
     contextBuilder.download_source = download
     context = contextBuilder.build()
-    response = get_transcript_from_request(context)
+    request = context.request
+    assert request is not None
+    response = get_transcript_from_request(request)
 
     # Result
     is_agent: bool = agent
@@ -57,10 +60,10 @@ def get(
         if actual_transcript_path:
             print(actual_transcript_path.read_text(encoding="utf-8"))
         else:
-            raise FileNotFoundError(f"No transcript found at {context.paths.runtime_directory}")
+            raise FileNotFoundError(f"No transcript found at {request.runtime_directory}")
     else:
         logger.info(f"Transcript files:")
-        list_transcripts(context)
+        list_transcripts(request)
 
     # Raise if any error
     if response.error is not None and response.error.code != 0:
@@ -69,10 +72,13 @@ def get(
 
 @typerCli.command()
 def mcp(
+    ctx: typer.Context,
     transport: McpTransport = typer.Option(McpTransport.stdio, help="Transport protocol")):
     """Start a Mcp Server"""
     logger.info(f"{transport.name} Mcp server started")
-    mcpServer = get_mcp_server()
+    contextBuilder: ContextBuilder = ctx.obj
+    context = contextBuilder.build()
+    mcpServer = get_mcp_server(context.service.home_directory)
     # Initialize and run the server
     if transport == McpTransport.stdio:
         mcpServer.run(transport="stdio")
@@ -97,13 +103,16 @@ def mcp(
 @typerCli.callback()
 def main(
     ctx: typer.Context,
-    verbose: bool = typer.Option(False, '-v', '--verbose', help='Verbose mode')
+    verbose: bool = typer.Option(False, '-v', '--verbose', help='Verbose mode'),
+    home: str | None = typer.Option(None, '--home',
+                                    help='The home directory where transcripts and information are stored')
 ):
     """
     Transcribe all you want
     """
     # the above comment is shown in the help when no command is asked
     context = ContextBuilder(verbose)
+    context.home = home
     logger.info(f"About to execute command: {ctx.invoked_subcommand}")
     ctx.obj = context  # user object
 
