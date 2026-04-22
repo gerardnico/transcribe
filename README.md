@@ -42,7 +42,10 @@ transcribe info uri
 Start a mcp server
 
 ```bash
+# stdio server
 transcribe mcp
+# Streamable http server accessing to the world
+transcribe mcp --transport http --host "0.0.0.0"
 ```
 
 ## Conf
@@ -62,7 +65,7 @@ $env:TRANSCRIBE_HOME = "C:\tmp\transcribe"
 ```json
 {
   "mcpServers": {
-    "weather": {
+    "transcribe": {
       "command": "C:\\Users\\name\\.local\\bin\\uv.exe",
       "args": [
         "--directory",

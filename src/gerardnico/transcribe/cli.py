@@ -9,7 +9,7 @@ from typing import Optional
 import typer
 from rich.pretty import pprint
 
-from gerardnico.transcribe.api import McpTransport, ContextBuilder
+from gerardnico.transcribe.api import McpTransport, ContextBuilder, localhost
 from gerardnico.transcribe.mcp_server import mcp_run
 from gerardnico.transcribe.transcribe import get_transcript_from_request, list_transcripts
 
@@ -72,11 +72,14 @@ def get(
 @typerCli.command()
 def mcp(
     ctx: typer.Context,
-    transport: McpTransport = typer.Option(McpTransport.stdio, help="Transport protocol")):
+    transport: McpTransport = typer.Option(McpTransport.stdio, help="Transport protocol"),
+    host: str = typer.Option(localhost, help="Host binding name (0.0.0.0 for world)")
+):
     """Start a Mcp Server"""
     logger.info(f"{transport.name} Mcp server started")
     contextBuilder: ContextBuilder = ctx.obj
     contextBuilder.transport = transport
+    contextBuilder.host = host
     context = contextBuilder.build()
     mcp_run(context.service)
 

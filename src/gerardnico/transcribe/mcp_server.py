@@ -1,6 +1,7 @@
 # https://github.com/modelcontextprotocol/python-sdk
 # https://modelcontextprotocol.io/docs/develop/build-server#importing-packages-and-setting-up-the-instance
 # https://gofastmcp.com/getting-started/welcome
+import logging
 from pathlib import Path
 
 import uvicorn
@@ -12,7 +13,7 @@ from mcp.types import CallToolResult, TextContent
 
 from gerardnico.transcribe.api import ContextBuilder, McpTransport, Service
 from gerardnico.transcribe.transcribe import get_transcript_from_request
-
+logger = logging.getLogger(__name__)
 
 def _response_body(status: int, body: str):
     return [
@@ -113,6 +114,7 @@ def mcp_run(service: Service):
     mcpServer = get_mcp_server(service.home_directory)
     # Initialize and run the server
     if service.mcp_transport == McpTransport.stdio:
+        logger.info(f"Starting stdio McpServer")
         mcpServer.run(transport="stdio")
         return
 
@@ -128,10 +130,15 @@ def mcp_run(service: Service):
         google_client_id=service.oauth2_client_id,
         authorized_emails=service.oauth2_authorized_emails,
     )
+    port = 8000
+    logger.info(f"Starting Streamable Http Mcp server at {service.host}:{port}")
+    logger.debug(f"ssl cert file is {service.ssl_cert_file}")
+    logger.debug(f"ssl key file is {service.ssl_key_file}")
+    logger.debug(f"host is {service.host}")
     uvicorn.run(
         authorized_mcp_app,
-        host="0.0.0.0",
-        port=8000,
-        ssl_keyfile="./private.key",
+        host=service.host,
+        port=port,
+        ssl_keyfile=service.ssl_key_file,
         ssl_certfile=service.ssl_cert_file,
     )

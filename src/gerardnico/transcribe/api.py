@@ -23,6 +23,7 @@ class Service:
     oauth2_authorized_emails: set[str] | None = None
     ssl_cert_file: Path | None = None
     ssl_key_file: Path | None = None
+    host: str = None
 
 
 @dataclass
@@ -58,6 +59,10 @@ class Response:
     error: SystemExit | None = field(default=None)
 
 
+# Not the localhost name because there is a DNS resolution
+localhost = "127.0.0.1"
+
+
 class ContextBuilder:
     verbose: bool = False
     uri: str = None
@@ -67,6 +72,8 @@ class ContextBuilder:
     downloadSource: bool = False
     # mcp Transport
     transport: McpTransport = McpTransport.stdio
+    # host
+    host: str = "127.0.0.1"
 
     def __init__(self, verbose=False):
         self.verbose = verbose
@@ -96,15 +103,17 @@ class ContextBuilder:
 
         client_id = None
         authorized_emails = None
-        ssl_keyfile = None
+        ssl_key_file = None
         ssl_cert_file = None
+        host = self.host
         if self.transport == McpTransport.http:
+
             client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
-            if not client_id:
+            if not client_id and host != localhost:
                 raise ValueError("GOOGLE_CLIENT_ID must be set for HTTP transport")
 
             raw_emails = os.environ.get("AUTHORIZED_EMAILS", "").strip()
-            if not raw_emails:
+            if not raw_emails and host != localhost:
                 raise ValueError("AUTHORIZED_EMAILS must be set for HTTP transport")
 
             authorized_emails = {
@@ -112,26 +121,32 @@ class ContextBuilder:
                 for email in raw_emails.split(",")
                 if email.strip()
             }
-            if not authorized_emails:
+            if not authorized_emails and host != localhost:
                 raise ValueError("AUTHORIZED_EMAILS must contain at least one email address")
 
             # certificates
             # mandatory for local test because the server needs to be in ssl
             sslCertsDir = Path("./ssl-certs")
             expected_cert_path = Path(sslCertsDir, "cert.pem")
-            if expected_cert_path.exists():
+            if not expected_cert_path.exists() and host == localhost:
+                raise ValueError(
+                    f"Cert {expected_cert_path} was not found and is mandatory for local host on http transport")
+            else:
                 ssl_cert_file = expected_cert_path
                 expected_key_path = Path(sslCertsDir, "key.pem")
                 if not expected_key_path.exists():
                     raise ValueError(
                         f"When a cert exists, a key file should be available and was not found at {expected_key_path}")
+                ssl_key_file = expected_key_path
 
         service = Service(
             home_directory=Path(transcribe_home),
             oauth2_client_id=client_id,
             oauth2_authorized_emails=authorized_emails,
+            mcp_transport=self.transport,
             ssl_cert_file=ssl_cert_file,
-            ssl_key_file=ssl_keyfile
+            ssl_key_file=ssl_key_file,
+            host=host
         )
 
         # If we start the mcp server, there is no uri
