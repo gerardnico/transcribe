@@ -4,12 +4,13 @@ TikTok Transcript Downloader using yt-dlp
 Downloads and formats transcripts from TikTok videos
 """
 import logging
+from pathlib import Path
 from typing import Optional
 
 import typer
 from rich.pretty import pprint
 
-from gerardnico.transcribe.api import McpTransport, ContextBuilder, localhost
+from gerardnico.transcribe.api import McpTransport, ContextBuilder, localhost, Context
 from gerardnico.transcribe.mcp_server import mcp_run
 from gerardnico.transcribe.transcribe import get_transcript_from_request, list_transcripts
 
@@ -18,19 +19,23 @@ typerCli = typer.Typer()
 logger = logging.getLogger(__name__)
 
 
-@typerCli.command()
-def info(
-    ctx: typer.Context,
-    uri: str = typer.Argument(..., help='URI (URL or file path)')
+def print_context(
+    context: Context,
 ):
-    """Get information about a transcript"""
-    contextBuilder: ContextBuilder = ctx.obj
-    contextBuilder.uri = uri
-    context = contextBuilder.build()
+    """Print the context"""
     pprint(context)
-    print("Local Transcripts:")
+    print("Available Files:")
     assert context.request is not None
-    list_transcripts(context.request)
+    directory = context.request.runtime_directory
+    if not directory.exists():
+        print("No runtime directory found")
+        return
+    for item in directory.iterdir():
+        item: Path
+        if not item.is_file():
+            continue
+        # print all files
+        print(item)
 
 
 @typerCli.command()
@@ -47,8 +52,14 @@ def get(
     contextBuilder.lang = langs
     contextBuilder.download_source = download
     context = contextBuilder.build()
+
+    if contextBuilder.print_context:
+        print_context(context)
+        return
+
     request = context.request
     assert request is not None
+
     response = get_transcript_from_request(request)
 
     # Result
@@ -85,6 +96,11 @@ def mcp(
     contextBuilder.port = port
     contextBuilder.origin = origin
     context = contextBuilder.build()
+
+    if contextBuilder.print_context:
+        print_context(context)
+        return
+
     mcp_run(context.service)
 
 
@@ -95,7 +111,9 @@ def main(
     ctx: typer.Context,
     verbose: bool = typer.Option(False, '-v', '--verbose', help='Verbose mode'),
     home: str | None = typer.Option(None, '--home',
-                                    help='The home directory where transcripts and information are stored')
+                                    help='The home directory where transcripts and information are stored'),
+    print_context_arg: bool | None = typer.Option(False, '--print-context',
+                                              help='Print the context and exit')
 ):
     """
     Transcribe all you want
@@ -103,6 +121,7 @@ def main(
     # the above comment is shown in the help when no command is asked
     context = ContextBuilder(verbose)
     context.home = home
+    context.print_context = print_context_arg
     logger.info(f"About to execute command: {ctx.invoked_subcommand}")
     ctx.obj = context  # user object
 

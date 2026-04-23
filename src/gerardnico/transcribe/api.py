@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 from urllib.parse import urlparse, ParseResult, parse_qs
 
 from gerardnico.transcribe.error import AppError
@@ -37,7 +37,7 @@ class Service:
 class Request:
     # The original uri
     uri: str
-    langs: Optional[List[str]] | None
+    lang: str | None
     runtime_directory: Path
     file_name: str
     file_extension: str
@@ -74,6 +74,7 @@ class ContextBuilder:
     verbose: bool = False
     uri: str = None
     home: str | None = None
+    print_context: bool|None = None
     lang: Optional[str] = None
     # download the source file?
     download_source: bool = False
@@ -208,12 +209,12 @@ class ContextBuilder:
         orig = "orig"
         if self.lang is None:
             if service_name == "youtube":
-                langs = [orig]
+                lang = orig
             else:
                 # we let yt-dlp decide, normally the spoken language of the video
-                langs = None
+                lang = None
         else:
-            langs = self.lang.split(",")
+            lang = self.lang
 
         # Compute derived properties
         # file type
@@ -226,19 +227,24 @@ class ContextBuilder:
         else:
             raise ValueError(f"File Scheme not yet implemented")
 
+        # download-source ?
+        download_source = self.download_source
+        if download_source and video_path.exists():
+            download_source=False
+
         return Context(
             service,
             Request(
                 uri=self.uri,
                 id=id_value,
-                langs=langs,
+                lang=lang,
                 runtime_directory=runtime_directory,
                 file_extension=file_extension,
                 file_name=file_name,
                 video_path=video_path,
                 audio_path=audio_path,
                 service_name=service_name,
-                download=self.download_source,
+                download=download_source,
                 verbose=self.verbose,
             )
         )

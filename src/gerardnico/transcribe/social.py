@@ -6,6 +6,7 @@ import yt_dlp
 
 from gerardnico.transcribe.api import Request
 from gerardnico.transcribe.error import AppError
+from gerardnico.transcribe.transcribe import TRANSCRIPT_PREFIX
 
 logger = logging.getLogger(__name__)
 
@@ -66,8 +67,8 @@ def execute_yt_dlp(request: Request):
     # --sub-langs "en.*,ja" (where "en.*" is a regex pattern that matches "en" followed by 0 or more of any character).
     # You can prefix the language code with a "-" to exclude it from the requested languages, e.g.
     # --sub-langs all,-live_chat. Use --list-subs for a list of available language tags
-    if not request.langs is None:
-        for lang in request.langs:
+    if not request.lang is None:
+        for lang in request.lang:
             if lang == orig:
                 found_orig = True
                 langs_regexp.append(f"{case_insensitivity_flag}.*-{orig}.*")
@@ -92,7 +93,7 @@ def execute_yt_dlp(request: Request):
         # For the output file names, this is a template string
         # https://github.com/yt-dlp/yt-dlp#output-template
         # "-o", "subtitle:%(extractor)s-%(uploader)s-%(id)s.%(ext)s",
-        "-o", f"subtitle:subtitle.%(ext)s",
+        "-o", f"subtitle:{TRANSCRIPT_PREFIX}.subtitle.%(ext)s",
         # Write video metadata to a .info.json file
         "--write-info-json",
         "-o", f"infojson:data",  # file is data.info.json
@@ -127,16 +128,17 @@ def execute_yt_dlp(request: Request):
     # execution and stdout/stderr capture
     stdout_buf = io.StringIO()
     stderr_buf = io.StringIO()
-    final_error: SystemExit | None = None
+    final_system_exit: SystemExit | None = None
     with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
         try:
             yt_dlp.main(args)
         except SystemExit as e:
-            # We capture it as the error could be after that the transcript as been downloaded
-            # example: processing thumbnail: ERROR: Preprocessing: Error opening output files: Invalid argument
-            final_error = e
+            # yt_dlp.main(args) finish with a SystemExit every time even on success
+            final_system_exit = e
 
-    if final_error is not None:
+    # Note that if there is any error, the transcript may have been downloaded
+    # example: processing thumbnail: ERROR: Preprocessing: Error opening output files: Invalid argument
+    if final_system_exit is not None and final_system_exit.code != 0:
         # we create another error with the stdout for more context
         raise AppError(f"Transcript download error has occurred: {stdout_buf.getvalue()} {stderr_buf.getvalue()}",
-                       final_error.code) from final_error
+                       final_system_exit.code) from final_system_exit

@@ -23,6 +23,8 @@ brew install deno
 * `ffmpeg` for voice extraction
 * whisper for speech to text
 
+* On Windows, download the latest [vc-redist](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist#latest-supported-redistributable-version)
+
 ## Commands
 
 ### Get
@@ -32,15 +34,10 @@ Get the transcript
 ```bash
 transcribe get uri
 transcribe get https://www.tiktok.com/@xxx/video/xxx
+# --print-context: show info with doing anything
+transcribe --print-context get https://www.tiktok.com/@xxx/video/xxx
 ```
 
-### Info
-
-Show general information
-
-```bash
-transcribe info uri
-```
 
 ### Mcp
 
@@ -59,7 +56,7 @@ transcribe mcp --transport http --host "0.0.0.0"
 
 `TRANSCRIBE_HOME` is where all data are downloaded/processed.
 
-The default value is `$HOME/.transcribe`. You can see it with the [info command](#info) before downloading.
+The default value is `$HOME/.transcribe`. You can see it with the `---print-context` flag before any command.
 
 ```powershell
 $env:TRANSCRIBE_HOME = "C:\tmp\transcribe"
@@ -97,3 +94,15 @@ export OAUTH_ORIGIN="https://mcp.exampke.com"
 # Starting the mcp server
 transcribe --verbose mcp --transport http --host "0.0.0.0"
 ```
+
+## Support
+
+### Whisper - WinError 1114 A dynamic link library (DLL) initialization routine failed.
+
+````
+WinError 1114 A dynamic link library (DLL) initialization routine failed.
+Error loading "C:\Users\user\code\transcribe\.venv\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies.
+````
+Download the latest [vc-redist](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist#latest-supported-redistributable-version)
+
+

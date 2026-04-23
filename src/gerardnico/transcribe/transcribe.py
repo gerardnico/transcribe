@@ -6,10 +6,14 @@ from gerardnico.transcribe.error import AppError
 from gerardnico.transcribe.ffmpeg import video_to_audio
 from gerardnico.transcribe.social import execute_yt_dlp
 from gerardnico.transcribe.vtt import post_processing_vtt
-from gerardnico.transcribe.whisper import post_processing_transcribe_audio_to_text
+from gerardnico.transcribe.whisper_processing import transcribe_with_openai_whisper
+
+# Transcript prefix
+# yt-dlp: {TRANSCRIPT_PREFIX}.subtitle.{lang}.%(ext)s",
+# whisper: {TRANSCRIPT_PREFIX}.whisper.{lang}.txt",
+TRANSCRIPT_PREFIX = "transcript"
 
 logger = logging.getLogger(__name__)
-
 
 def get_transcript_from_request(request: Request) -> Response:
     if request.service_name == "file":
@@ -56,9 +60,9 @@ def get_transcript_from_runtime_dir(request: Request):
             continue
         if not item.suffix.lower() == '.txt':
             continue
-        if not request.langs is None:
+        if not request.lang is None:
             subtitle_language = Path(item.name).stem.split(".", 1)[1]
-            asked_lang = request.langs[0]
+            asked_lang = request.lang[0]
             if not asked_lang in subtitle_language.lower():
                 continue
         subtitle_path = item
@@ -79,7 +83,7 @@ def list_transcripts(request: Request):
         item: Path
         if not item.is_file():
             continue
-        if not item.name.startswith('subtitle'):
+        if not item.name.startswith(TRANSCRIPT_PREFIX):
             # not a subtitle
             continue
         # print all available subtitle file
@@ -115,7 +119,7 @@ def post_processing(request: Request) -> None:
     logger.info(f"Trying to transcribe")
     if get_speech_to_text(request, vtt_file_count):
         video_to_audio(request)
-        post_processing_transcribe_audio_to_text(request)
+        transcribe_with_openai_whisper(request)
 
 
 def get_speech_to_text(request: Request, vtt_file_count):

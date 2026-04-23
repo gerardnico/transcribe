@@ -5,6 +5,7 @@ uv sync
 
 # activate
 source .venv/bin/activate
+# windows: .venv/Scripts/activate
 
 # Cert file
 if [ ! -f localhost.pem ]; then

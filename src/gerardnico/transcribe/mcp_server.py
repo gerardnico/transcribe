@@ -50,11 +50,15 @@ def get_mcp_server(service: Service):
     )
 
     @mcp.tool()
-    async def get_transcript(uri: str = Field(description="The uri of the resource to transcribe")) -> str:
+    async def get_transcript(
+        uri: str = Field(description="The uri of the resource to transcribe"),
+        lang: str|None = Field(description="The lang of transcript")
+    ) -> str:
         """Get a transcript from a resource"""
         contextBuilder = ContextBuilder()
         contextBuilder.home = str(service.home_directory)
         contextBuilder.uri = uri
+        contextBuilder.lang = lang
         context = contextBuilder.build()
         if not context.request:
             raise Exception("Internal exception, the context should have a request object")

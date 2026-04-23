@@ -13,6 +13,7 @@ dependencies = [
   "typer==0.24.1",
   "fastmcp==3.2.4",
   "fastapi==0.136.0",
+  "openai-whisper>=20250625",
 ]
 
 [dependency-groups]
