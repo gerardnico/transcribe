@@ -7,20 +7,20 @@ tasks:
     cmds:
       - |
         copier update --vcs-ref HEAD .
-  transcribe:
-    cmds:
-      - |
-        uv run src\gerardnico\transcribe\cli.py
   install:
     cmds:
       - |
         pipx install -e --force .
-  test:
-    cmds:
-      -|
-      # verbose: uv run pytest -v
-      uv run pytest
-  cert:
+  transcribe:
+    # works also on Windows as gotask uses its own sh engine
+    # call it with: task transcribe -- {ARGS}
     cmds:
       - |
-        openssl req -x509 -newkey rsa:4096 -keyout private.key -out certificate.crt -days 365 -nodes -subj '/CN=localhost'
+        export OAUTH_CLIENT_ID=$(pass transcribe/google/oauth-client-id)
+        export OAUTH_CLIENT_SECRET=$(pass transcribe/google/oauth-client-secret)
+        uv run -m gerardnico.transcribe.cli {{.CLI_ARGS}}
+  test:
+    cmds:
+      - |
+        # verbose: uv run pytest -v
+        uv run pytest

@@ -20,6 +20,7 @@ class Service:
     home_directory: Path = None
     mcp_transport: McpTransport = McpTransport.stdio
     oauth2_client_id: str | None = None
+    oauth2_client_secret: str | None = None
     oauth2_authorized_emails: set[str] | None = None
     ssl_cert_file: Path | None = None
     ssl_key_file: Path | None = None
@@ -101,47 +102,36 @@ class ContextBuilder:
             if not transcribe_home:
                 transcribe_home = os.environ.get('HOME') + "/.transcribe"
 
-        client_id = None
-        authorized_emails = None
         ssl_key_file = None
         ssl_cert_file = None
         host = self.host
-        if self.transport == McpTransport.http:
 
-            client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
-            if not client_id and host != localhost:
-                raise ValueError("GOOGLE_CLIENT_ID must be set for HTTP transport")
+        # Oauth
+        client_id = os.environ.get("OAUTH_CLIENT_ID", "").strip()
+        client_secret = os.environ.get("OAUTH_CLIENT_SECRET", "").strip()
+        raw_emails = os.environ.get("AUTHORIZED_EMAILS", "").strip()
+        authorized_emails = {
+            email.strip().lower()
+            for email in raw_emails.split(",")
+            if email.strip()
+        }
 
-            raw_emails = os.environ.get("AUTHORIZED_EMAILS", "").strip()
-            if not raw_emails and host != localhost:
-                raise ValueError("AUTHORIZED_EMAILS must be set for HTTP transport")
-
-            authorized_emails = {
-                email.strip().lower()
-                for email in raw_emails.split(",")
-                if email.strip()
-            }
-            if not authorized_emails and host != localhost:
-                raise ValueError("AUTHORIZED_EMAILS must contain at least one email address")
-
-            # certificates
-            # mandatory for local test because the server needs to be in ssl
-            sslCertsDir = Path("./ssl-certs")
-            expected_cert_path = Path(sslCertsDir, "cert.pem")
-            if not expected_cert_path.exists() and host == localhost:
+        # certificates for ssl
+        # mandatory for local test because the server needs to be in ssl
+        sslCertsDir = Path("./ssl-certs")
+        expected_cert_path = Path(sslCertsDir, "cert.pem")
+        if expected_cert_path.exists():
+            ssl_cert_file = expected_cert_path
+            expected_key_path = Path(sslCertsDir, "key.pem")
+            if not expected_key_path.exists():
                 raise ValueError(
-                    f"Cert {expected_cert_path} was not found and is mandatory for local host on http transport")
-            else:
-                ssl_cert_file = expected_cert_path
-                expected_key_path = Path(sslCertsDir, "key.pem")
-                if not expected_key_path.exists():
-                    raise ValueError(
-                        f"When a cert exists, a key file should be available and was not found at {expected_key_path}")
-                ssl_key_file = expected_key_path
+                    f"When a cert exists, a key file should be available and was not found at {expected_key_path}")
+            ssl_key_file = expected_key_path
 
         service = Service(
             home_directory=Path(transcribe_home),
             oauth2_client_id=client_id,
+            oauth2_client_secret=client_secret,
             oauth2_authorized_emails=authorized_emails,
             mcp_transport=self.transport,
             ssl_cert_file=ssl_cert_file,
