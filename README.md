@@ -10,13 +10,18 @@
 ```bash
 # rm -rf ~/.local/share/pipx/venvs/transcribe
 pipx install -e --force .
+# or
+uv tool install
 ```
 
+Dependency:
 * Deno for challenge: https://github.com/yt-dlp/yt-dlp/wiki/EJS
 
 ```bash
 brew install deno
 ```
+* `ffmpeg` for voice extraction
+* whisper for speech to text
 
 ## Commands
 
@@ -48,8 +53,6 @@ transcribe mcp
 transcribe mcp --transport http --host "0.0.0.0"
 ```
 
-
-
 ## Conf
 
 ### TRANSCRIBE_HOME
@@ -62,18 +65,17 @@ The default value is `$HOME/.transcribe`. You can see it with the [info command]
 $env:TRANSCRIBE_HOME = "C:\tmp\transcribe"
 ```
 
-### Mcp
+## Mcp Servers
+
+### Stdio Config
+
 
 ```json
 {
   "mcpServers": {
     "transcribe": {
-      "command": "C:\\Users\\name\\.local\\bin\\uv.exe",
+      "command": "transcribe",
       "args": [
-        "--directory",
-        "C:\\Users\\name\\code\\transcribe",
-        "run",
-        "src\\gerardnico\\transcribe\\cli.py",
         "mcp"
       ]
     }
@@ -81,22 +83,17 @@ $env:TRANSCRIBE_HOME = "C:\tmp\transcribe"
 }
 ```
 
-### MCP HTTP OAuth2 (Google)
+### MCP HTTP OAuth2 with Google
 
-When using HTTP transport for MCP, the server requires Google OAuth2 ID tokens and an email allowlist.
+You may enable oauth with Google by setting this environment values:
 
-Set these environment variables before starting the HTTP MCP server:
-
-```powershell
-$env:GOOGLE_CLIENT_ID = "<your-google-oauth-client-id>"
-$env:AUTHORIZED_EMAILS = "user1@example.com,user2@example.com"
+```bash
+# OAuth client ID
+export  OAUTH_CLIENT_ID="xxxxxxxxxx"
+# OAuth client secret
+export OAUTH_CLIENT_SECRET="xxxxxxxxx"
+# OAuth OOrigin (Authorized JavaScript origins)
+export OAUTH_ORIGIN="https://mcp.exampke.com"
+# Starting the mcp server
+transcribe --verbose mcp --transport http --host "0.0.0.0"
 ```
-
-- `GOOGLE_CLIENT_ID`: Google OAuth client ID used to validate incoming bearer ID tokens.
-- `AUTHORIZED_EMAILS`: comma-separated list of allowed user emails.
-
-## Support
-
-### Claude Desktop
-
-* Found in `claude.ai-web.log`: Localhost URLs cannot be used because our servers cannot reach your local machine. Provide a publicly accessible MCP server URL.

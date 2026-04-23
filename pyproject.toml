@@ -10,10 +10,7 @@ dependencies = [
   "yt-dlp[default,curl-cffi]==2026.03.17",
   "webvtt-py==0.5.1",
   "packaging==26.0",
-  #  "mcp[cli]==1.27.0",
-  "httpx==0.28.1",
   "typer==0.24.1",
-  "google-auth==2.49.2",
   "fastmcp==3.2.4",
   "fastapi==0.136.0",
 ]

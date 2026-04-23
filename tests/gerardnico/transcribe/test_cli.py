@@ -61,7 +61,7 @@ async def test_mcp_stdio_command():
 
             # List tools
             list_tools_result = await session.list_tools()
-            assert len(list_tools_result.tools) == 1
+            assert len(list_tools_result.tools) == 2
 
             # Call a tool
             result = await session.call_tool("get_transcript", {"uri": uri})

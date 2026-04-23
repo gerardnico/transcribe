@@ -73,13 +73,17 @@ def get(
 def mcp(
     ctx: typer.Context,
     transport: McpTransport = typer.Option(McpTransport.stdio, help="Transport protocol"),
-    host: str = typer.Option(localhost, help="Host binding name (0.0.0.0 for world)")
+    host: str = typer.Option(localhost, help="Host binding name (0.0.0.0 for world)"),
+    port: int = typer.Option(8000, help="Port binding number"),
+    origin: str = typer.Option(None, help="The oauth origin"),
 ):
     """Start a Mcp Server"""
     logger.info(f"{transport.name} Mcp server started")
     contextBuilder: ContextBuilder = ctx.obj
     contextBuilder.transport = transport
     contextBuilder.host = host
+    contextBuilder.port = port
+    contextBuilder.origin = origin
     context = contextBuilder.build()
     mcp_run(context.service)
 

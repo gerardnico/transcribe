@@ -5,14 +5,16 @@ import logging
 import yt_dlp
 
 from gerardnico.transcribe.api import Request
+from gerardnico.transcribe.error import AppError
 
 logger = logging.getLogger(__name__)
-
 
 
 def execute_yt_dlp(request: Request):
     """
     Execute the yt-dlp command
+    Raises:
+        AppError: If execution exits
     """
     args = []
 
@@ -125,7 +127,7 @@ def execute_yt_dlp(request: Request):
     # execution and stdout/stderr capture
     stdout_buf = io.StringIO()
     stderr_buf = io.StringIO()
-    final_error = None
+    final_error: SystemExit | None = None
     with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
         try:
             yt_dlp.main(args)
@@ -136,4 +138,5 @@ def execute_yt_dlp(request: Request):
 
     if final_error is not None:
         # we create another error with the stdout for more context
-        raise Exception(f"Transcript download error has occurred: {stdout_buf.getvalue()} {stderr_buf.getvalue()}")
+        raise AppError(f"Transcript download error has occurred: {stdout_buf.getvalue()} {stderr_buf.getvalue()}",
+                       final_error.code) from final_error

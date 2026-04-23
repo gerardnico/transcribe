@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Optional, List
 from urllib.parse import urlparse, ParseResult, parse_qs
 
+from gerardnico.transcribe.error import AppError
+
 logger = logging.getLogger(__name__)
 
 
@@ -21,10 +23,14 @@ class Service:
     mcp_transport: McpTransport = McpTransport.stdio
     oauth2_client_id: str | None = None
     oauth2_client_secret: str | None = None
+    # the external origin (ie 127.0.0.1:8000 or the dns name)
+    oauth2_origin: str | None = None
     oauth2_authorized_emails: set[str] | None = None
     ssl_cert_file: Path | None = None
     ssl_key_file: Path | None = None
-    host: str = None
+    # binding_host: should be 0.0.0.0 for external access
+    binding_host: str = "127.0.0.1"
+    binding_port: int = 8000
 
 
 @dataclass
@@ -57,7 +63,7 @@ class Context:
 @dataclass
 class Response:
     path: Path | None
-    error: Exception | None = field(default=None)
+    error: AppError | None = field(default=None)
 
 
 # Not the localhost name because there is a DNS resolution
@@ -74,7 +80,9 @@ class ContextBuilder:
     # mcp Transport
     transport: McpTransport = McpTransport.stdio
     # host
-    host: str = "127.0.0.1"
+    host: str = localhost
+    port: int = 8000
+    origin: str | None = None
 
     def __init__(self, verbose=False):
         self.verbose = verbose
@@ -104,7 +112,6 @@ class ContextBuilder:
 
         ssl_key_file = None
         ssl_cert_file = None
-        host = self.host
 
         # Oauth
         client_id = os.environ.get("OAUTH_CLIENT_ID", "").strip()
@@ -128,15 +135,23 @@ class ContextBuilder:
                     f"When a cert exists, a key file should be available and was not found at {expected_key_path}")
             ssl_key_file = expected_key_path
 
+        # origin for oauth
+        origin = self.origin
+        if not origin:
+            # noinspection HttpUrlsUsage
+            origin = f"http://{self.host}:{self.port}"
+
         service = Service(
             home_directory=Path(transcribe_home),
             oauth2_client_id=client_id,
             oauth2_client_secret=client_secret,
             oauth2_authorized_emails=authorized_emails,
+            oauth2_origin=origin,
             mcp_transport=self.transport,
             ssl_cert_file=ssl_cert_file,
             ssl_key_file=ssl_key_file,
-            host=host
+            binding_host=self.host,
+            binding_port=self.port
         )
 
         # If we start the mcp server, there is no uri

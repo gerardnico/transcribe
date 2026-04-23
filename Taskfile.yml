@@ -11,9 +11,11 @@ tasks:
     cmds:
       - |
         pipx install -e --force .
+  # Execute the `transcribe` cli
   transcribe:
     # works also on Windows as gotask uses its own sh engine
     # call it with: task transcribe -- {ARGS}
+    # example: task transcribe --verbose mcp --transport http
     cmds:
       - |
         export OAUTH_CLIENT_ID=$(pass transcribe/google/oauth-client-id)
