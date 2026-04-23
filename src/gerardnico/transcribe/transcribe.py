@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 
 from gerardnico.transcribe.api import Response, Request
+from gerardnico.transcribe.error import AppError
 from gerardnico.transcribe.ffmpeg import video_to_audio
 from gerardnico.transcribe.social import execute_yt_dlp
 from gerardnico.transcribe.vtt import post_processing_vtt
@@ -26,7 +27,7 @@ def get_transcript_from_request(request: Request) -> Response:
     try:
         # Download subtitle and optionally the video
         execute_yt_dlp(request)
-    except Exception as e:
+    except AppError as e:
         # We capture it as the error could be after that the transcript as been downloaded
         # example: processing thumbnail: ERROR: Preprocessing: Error opening output files: Invalid argument
         final_error = e

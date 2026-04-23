@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 
 def get_mcp_server(service: Service):
-
     # Initialize FastMCP server
     # The FastMCP class uses Python type hints
     # and docstrings to automatically generate tool definitions
@@ -61,11 +60,16 @@ def get_mcp_server(service: Service):
             raise Exception("Internal exception, the context should have a request object")
         response = get_transcript_from_request(context.request)
         # https://py.sdk.modelcontextprotocol.io/server/#error-handling
-        if response.error:
-            raise ToolError(f"{str(response.error)}")
         if not response.path:
-            raise ToolError("Sorry, no errors were seen but no transcript file was found")
-        # CallToolResult objeect is persisted as JSON, making it difficult to test
+            if not response.error:
+                raise ToolError(f"Sorry, no transcript file was found and no errors were seen.")
+            else:
+                # yt-dlp may send an error even if the subtitle is there
+                # so if we have a path, we don't have any error
+                raise ToolError(f"Sorry, an error has occurred: {str(response.error)}")
+
+        # We don't return a CallToolResult object
+        # becuase it is persisted as JSON in the text field, making it difficult to test
         # return CallToolResult(
         #     content=[TextContent(type="text", text="")],
         # )

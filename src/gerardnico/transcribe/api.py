@@ -76,7 +76,7 @@ class ContextBuilder:
     home: str | None = None
     lang: Optional[str] = None
     # download the source file?
-    downloadSource: bool = False
+    download_source: bool = False
     # mcp Transport
     transport: McpTransport = McpTransport.stdio
     # host
@@ -238,7 +238,7 @@ class ContextBuilder:
                 video_path=video_path,
                 audio_path=audio_path,
                 service_name=service_name,
-                download=self.downloadSource,
+                download=self.download_source,
                 verbose=self.verbose,
             )
         )
