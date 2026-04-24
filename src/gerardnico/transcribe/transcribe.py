@@ -50,8 +50,8 @@ def get_transcript_from_runtime_dir(request: Request):
         item: Path
         if not item.is_file():
             continue
-        if not item.name.startswith('subtitle'):
-            # not a subtitle
+        if not item.name.startswith(TRANSCRIPT_PREFIX):
+            # not a transcript
             continue
         if not item.suffix.lower() == '.txt':
             continue
