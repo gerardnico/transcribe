@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import shutil
 from pathlib import Path
 
 import typer
@@ -58,6 +59,33 @@ def build_image(image: str) -> None:
     execute_command(["docker", "build", "-t", image, "."], cwd=REPO_ROOT)
 
 
+def get_secret_from_pass(secret_key: str) -> str | None:
+    # noinspection PyDeprecation
+    pass_path = shutil.which("pass")
+    if not pass_path:
+        # noinspection PyDeprecation
+        pass_path = shutil.which("pass.bat")
+    if not pass_path:
+        typer.echo(
+            f"Warning: unable to find the pass executable. "
+            "Container will run without pass variable.",
+            err=True,
+        )
+        return None
+
+    result = subprocess.run(
+        [pass_path, secret_key],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    value = result.stdout.strip()
+    if not value:
+        typer.echo(f"Warning: pass returned empty value for {secret_key}", err=True)
+        return None
+    return value
+
+
 @APP.command("build")
 def build(
     image: str = typer.Option(
@@ -77,16 +105,42 @@ def build(
 
 
 @APP.command("run")
-def run() -> None:
+def run(no_daemon: bool = typer.Option(
+    False,
+    "--no-daemon",
+    help=f"No Daemon",
+), ) -> None:
     """Run the Docker image only."""
     try:
+        port = 8206 # same as in the docker image
         image = DEFAULT_IMAGE
         ensure_docker_available()
-        execute_command(["docker", "run", "--name", CONTAINER_NAME, "--rm", "-d", "-p", "8000:8000", image],
-                        cwd=REPO_ROOT)
+        run_args = [
+            "docker",
+            "run",
+            "--name",
+            CONTAINER_NAME,
+            "--rm",
+            "-p",
+            f"{port}:{port}",
+        ]
+        oauth_client_id = get_secret_from_pass("transcribe/google/oauth-client-id")
+        if oauth_client_id:
+            run_args.extend(["-e", f"OAUTH_CLIENT_ID={oauth_client_id}"])
+        oauth_client_secret = get_secret_from_pass("transcribe/google/oauth-client-secret")
+        if oauth_client_secret:
+            run_args.extend(["-e", f"OAUTH_CLIENT_SECRET={oauth_client_secret}"])
+        run_args.extend(["-e", f"OAUTH_ORIGIN=http://127.0.0.1:{port}"])
+        if not no_daemon:
+            run_args.append("-d")
+        run_args.extend([image, "mcp", "--transport", "http", "--host", "0.0.0.0", "--port", f"{port}"])
+        execute_command(
+            run_args,
+            cwd=REPO_ROOT)
         typer.echo(f"Container {CONTAINER_NAME} started with the image {image}")
     except Exception as error:
         fail_runtime(error)
+
 
 @APP.command("stop")
 def stop() -> None:
@@ -98,6 +152,7 @@ def stop() -> None:
         typer.echo(f"Container {CONTAINER_NAME} stopped")
     except Exception as error:
         fail_runtime(error)
+
 
 @APP.command("push")
 def push() -> None:

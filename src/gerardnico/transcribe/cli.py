@@ -84,7 +84,7 @@ def mcp(
     ctx: typer.Context,
     transport: McpTransport = typer.Option(McpTransport.stdio, help="Transport protocol"),
     host: str = typer.Option(localhost, help="Host binding name (0.0.0.0 for world)"),
-    port: int = typer.Option(8000, help="Port binding number"),
+    port: int = typer.Option(8206, help="Port binding number"),
     origin: str = typer.Option(None, help="The oauth origin"),
 ):
     """Start a Mcp Server"""

@@ -26,8 +26,11 @@ def get_mcp_server(service: Service):
     if service.mcp_transport == McpTransport.http and service.oauth2_client_id:
         # Doc: https://gofastmcp.com/integrations/google
         # Sdk: https://gofastmcp.com/python-sdk/fastmcp-server-auth-providers-google
+        assert service.oauth2_client_secret is not None
+        if service.oauth2_client_id and not service.oauth2_client_secret:
+            logger.warning("The oauth2_client_secret is empty while the oauth2_client_id is not. Oauth may not work")
         assert service.oauth2_origin is not None
-        logger.info(f"Oauth enabled")
+        logger.info(f"Oauth enabled with origin url {service.oauth2_origin}")
         auth = GoogleProvider(
             client_id=service.oauth2_client_id,
             client_secret=service.oauth2_client_secret,
@@ -124,12 +127,12 @@ def mcp_run(service: Service):
 
     # Mount MCP at /
     # it's mandatory to get the oauth well-known path
-    # such as: http://localhost:8000/.well-known/oauth-authorization-server
+    # such as: http://localhost:8206/.well-known/oauth-authorization-server
     # see https://gofastmcp.com/deployment/http#mounting-authenticated-servers
     fast_api_app.mount("/", mcp_app)
 
-    # http://127.0.0.1:8000/mcp
-    # for https://127.0.0.1:8000/mcp (mandatory)
+    # http://127.0.0.1:8206/mcp
+    # for https://127.0.0.1:8206/mcp (mandatory)
     # see task cert to generate the certs
     logger.info(f"Starting Streamable Http Mcp server at {service.binding_host}:{service.binding_port}")
     logger.debug(f"ssl cert file is {service.ssl_cert_file}")

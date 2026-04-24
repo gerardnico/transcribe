@@ -23,14 +23,15 @@ class Service:
     mcp_transport: McpTransport = McpTransport.stdio
     oauth2_client_id: str | None = None
     oauth2_client_secret: str | None = None
-    # the external origin (ie 127.0.0.1:8000 or the dns name)
+    # the external origin (ie 127.0.0.1:8206 or the dns name)
     oauth2_origin: str | None = None
     oauth2_authorized_emails: set[str] | None = None
     ssl_cert_file: Path | None = None
     ssl_key_file: Path | None = None
     # binding_host: should be 0.0.0.0 for external access
     binding_host: str = "127.0.0.1"
-    binding_port: int = 8000
+    # 8206 (not 8000, too common)
+    binding_port: int = 8206
 
 
 @dataclass
@@ -74,7 +75,7 @@ class ContextBuilder:
     verbose: bool = False
     uri: str = None
     home: str | None = None
-    print_context: bool|None = None
+    print_context: bool | None = None
     lang: Optional[str] = None
     # download the source file?
     download_source: bool = False
@@ -82,12 +83,13 @@ class ContextBuilder:
     transport: McpTransport = McpTransport.stdio
     # host
     host: str = localhost
-    port: int = 8000
+    # port: not 8000 because it's too common and will clash with already started process (such as kubelogin for instance)
+    port: int = 8206
     origin: str | None = None
 
     def __init__(self, verbose=False):
         self.verbose = verbose
-        logging_level = logging.ERROR
+        logging_level = logging.INFO
         if verbose:
             logging_level = logging.DEBUG
         logging.basicConfig(
@@ -117,6 +119,18 @@ class ContextBuilder:
         # Oauth
         client_id = os.environ.get("OAUTH_CLIENT_ID", "").strip()
         client_secret = os.environ.get("OAUTH_CLIENT_SECRET", "").strip()
+        # origin for oauth
+        origin = self.origin
+        if not origin:
+            origin = os.environ.get("OAUTH_ORIGIN", "").strip()
+            if not origin:
+                if self.host == "0.0.0.0": # docker run
+                    # Mcp do not allow a non-local origin without https
+                    # ie this url is not allowed: http://0.0.0.0:8206
+                    origin = f"http://127.0.0.1:{self.port}"
+                else:
+                    # noinspection HttpUrlsUsage
+                    origin = f"http://{self.host}:{self.port}"
         raw_emails = os.environ.get("AUTHORIZED_EMAILS", "").strip()
         authorized_emails = {
             email.strip().lower()
@@ -136,11 +150,6 @@ class ContextBuilder:
                     f"When a cert exists, a key file should be available and was not found at {expected_key_path}")
             ssl_key_file = expected_key_path
 
-        # origin for oauth
-        origin = self.origin
-        if not origin:
-            # noinspection HttpUrlsUsage
-            origin = f"http://{self.host}:{self.port}"
 
         service = Service(
             home_directory=Path(transcribe_home),
@@ -230,7 +239,7 @@ class ContextBuilder:
         # download-source ?
         download_source = self.download_source
         if download_source and video_path.exists():
-            download_source=False
+            download_source = False
 
         return Context(
             service,
