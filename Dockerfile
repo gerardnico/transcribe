@@ -20,6 +20,12 @@ RUN apt-get update \
 
 WORKDIR /app
 
+RUN useradd --create-home --shell /usr/sbin/nologin app \
+    && mkdir -p "${TRANSCRIBE_HOME}" \
+    && chown -R app:app /app /home/app
+
+USER app
+
 # Install production dependencies only (no dev, no optional whisper extra).
 # Copy metadata first to improve dependency-layer caching.
 # The README is reference in the pyproject.toml and is therefore needed
@@ -29,13 +35,8 @@ COPY pyproject.toml uv.lock ./
 # This layer is cached as long as pyproject.toml and uv.lock don't change
 RUN uv sync --frozen --no-dev
 
-RUN useradd --create-home --shell /usr/sbin/nologin app \
-    && mkdir -p "${TRANSCRIBE_HOME}" \
-    && chown -R app:app /app /home/app
 
 ENV PATH="/app/.venv/bin:${DENO_INSTALL}/bin:${PATH}"
-
-USER app
 
 EXPOSE 8206
 
