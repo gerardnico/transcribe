@@ -10,6 +10,7 @@ from pathlib import Path
 import typer
 
 DEFAULT_IMAGE = "ghcr.io/gerardnico/transcribe:latest"
+CONTAINER_NAME = "transcribe"
 APP = typer.Typer(help="Build and release transcribe image to GitHub Container Registry.")
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -81,8 +82,20 @@ def run() -> None:
     try:
         image = DEFAULT_IMAGE
         ensure_docker_available()
-        execute_command(["docker", "run", "--rm", "-d", "-p", "8000:8000", image], cwd=REPO_ROOT)
-        typer.echo(f"Run completed: {image}")
+        execute_command(["docker", "run", "--name", CONTAINER_NAME, "--rm", "-d", "-p", "8000:8000", image],
+                        cwd=REPO_ROOT)
+        typer.echo(f"Container {CONTAINER_NAME} started with the image {image}")
+    except Exception as error:
+        fail_runtime(error)
+
+@APP.command("stop")
+def stop() -> None:
+    """Stop the container"""
+    try:
+        ensure_docker_available()
+        execute_command(["docker", "stop", CONTAINER_NAME],
+                        cwd=REPO_ROOT)
+        typer.echo(f"Container {CONTAINER_NAME} stopped")
     except Exception as error:
         fail_runtime(error)
 

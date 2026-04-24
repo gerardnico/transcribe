@@ -13,12 +13,15 @@ ENV PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PROJECT_ENVIRONMENT=/app/.venv \
-    TRANSCRIBE_HOME=/home/app/.transcribe
+    TRANSCRIBE_HOME=/home/app/.transcribe \
+    DENO_INSTALL=/opt/deno \
+    DENO_VERSION=2.3.5
 
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
+    && apt-get install -y --no-install-recommends ffmpeg ca-certificates curl unzip \
+    && curl -fsSL https://deno.land/install.sh | sh -s v${DENO_VERSION} \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy metadata first to improve dependency-layer caching.
@@ -32,7 +35,7 @@ RUN useradd --create-home --shell /usr/sbin/nologin app \
     && mkdir -p "${TRANSCRIBE_HOME}" \
     && chown -R app:app /app /home/app
 
-ENV PATH="/app/.venv/bin:${PATH}"
+ENV PATH="/app/.venv/bin:${DENO_INSTALL}/bin:${PATH}"
 
 USER app
 
