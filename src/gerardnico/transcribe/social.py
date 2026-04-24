@@ -4,9 +4,8 @@ import logging
 
 import yt_dlp
 
-from gerardnico.transcribe.api import Request
+from gerardnico.transcribe.api import Request, TRANSCRIPT_PREFIX
 from gerardnico.transcribe.error import AppError
-from gerardnico.transcribe.transcribe import TRANSCRIPT_PREFIX
 
 logger = logging.getLogger(__name__)
 
@@ -141,4 +140,4 @@ def execute_yt_dlp(request: Request):
     if final_system_exit is not None and final_system_exit.code != 0:
         # we create another error with the stdout for more context
         raise AppError(f"Transcript download error has occurred: {stdout_buf.getvalue()} {stderr_buf.getvalue()}",
-                       final_system_exit.code) from final_system_exit
+                      0 if final_system_exit.code is None else final_system_exit.code) from final_system_exit

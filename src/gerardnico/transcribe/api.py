@@ -252,3 +252,10 @@ class ContextBuilder:
     def set_uri(self, param):
         self.uri = param
         return self
+
+TRANSCRIPT_PREFIX = "transcript"
+"""
+Transcript prefix
+# yt-dlp: {TRANSCRIPT_PREFIX}.subtitle.{lang}.%(ext)s",
+# whisper: {TRANSCRIPT_PREFIX}.whisper.{lang}.txt",
+"""

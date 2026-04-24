@@ -5,8 +5,7 @@ from pathlib import Path
 import torch
 import whisper
 
-from gerardnico.transcribe.api import Request
-from gerardnico.transcribe.transcribe import TRANSCRIPT_PREFIX
+from gerardnico.transcribe.api import Request, TRANSCRIPT_PREFIX
 
 logger = logging.getLogger(__name__)
 

@@ -1,17 +1,12 @@
 import logging
 from pathlib import Path
 
-from gerardnico.transcribe.api import Response, Request
+from gerardnico.transcribe.api import Response, Request, TRANSCRIPT_PREFIX
 from gerardnico.transcribe.error import AppError
 from gerardnico.transcribe.ffmpeg import video_to_audio
 from gerardnico.transcribe.social import execute_yt_dlp
 from gerardnico.transcribe.vtt import post_processing_vtt
-from gerardnico.transcribe.whisper_processing import transcribe_with_openai_whisper
 
-# Transcript prefix
-# yt-dlp: {TRANSCRIPT_PREFIX}.subtitle.{lang}.%(ext)s",
-# whisper: {TRANSCRIPT_PREFIX}.whisper.{lang}.txt",
-TRANSCRIPT_PREFIX = "transcript"
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +114,15 @@ def post_processing(request: Request) -> None:
     logger.info(f"Trying to transcribe")
     if get_speech_to_text(request, vtt_file_count):
         video_to_audio(request)
+        # Whisper is optional in production, so import it only when needed.
+        try:
+            from gerardnico.transcribe.whisper_processing import transcribe_with_openai_whisper
+        except ModuleNotFoundError as e:
+            raise AppError(
+                "Speech-to-text backend is unavailable. Install optional dependency with "
+                "`pip install .[whisper]` (or `uv sync --extra whisper`) to enable transcription "
+                "when subtitles are missing."
+            ) from e
         transcribe_with_openai_whisper(request)
 
 

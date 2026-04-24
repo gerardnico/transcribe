@@ -13,6 +13,10 @@ dependencies = [
   "typer==0.24.1",
   "fastmcp==3.2.4",
   "fastapi==0.136.0",
+]
+
+[project.optional-dependencies]
+whisper = [
   "openai-whisper>=20250625",
 ]
 
@@ -39,6 +43,10 @@ build-backend = "hatchling.build"
 # the CLI command uses a hyphen (as you named it),
 # but the Python module name uses an underscore since hyphens aren't valid in Python identifiers.
 transcribe = "gerardnico.transcribe.cli:cli"
+
+[project.urls]
+Homepage = "https://github.com/gerardnico/transcribe"
+Repository = "https://github.com/gerardnico/transcribe"
 
 # To resolve: raceback (most recent call last):
 #  File "/home/admin/.local/bin/transcript-downloader", line 3, in <module>

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-TikTok Transcript Downloader using yt-dlp
-Downloads and formats transcripts from TikTok videos
+Transcript
 """
 import logging
 from pathlib import Path
