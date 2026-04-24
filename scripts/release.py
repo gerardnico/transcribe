@@ -6,6 +6,7 @@ from __future__ import annotations
 import subprocess
 import sys
 import shutil
+import threading
 from pathlib import Path
 
 import typer
@@ -17,27 +18,52 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def execute_command(command: list[str], cwd: Path) -> None:
-    print(f"+ {' '.join(command)}")
-    completed = subprocess.run(
+    print(f"+ {' '.join(command)}", flush=True)
+    process = subprocess.Popen(
         command,
         cwd=cwd,
         text=True,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        bufsize=1,
     )
-    if completed.returncode == 0:
-        if completed.stdout.strip():
-            print(completed.stdout.strip())
+    stdout_lines: list[str] = []
+    stderr_lines: list[str] = []
+
+    def stream_output(pipe, target_stream, collected: list[str]) -> None:
+        assert pipe is not None
+        for line in iter(pipe.readline, ""):
+            collected.append(line)
+            print(line, end="", file=target_stream, flush=True)
+        pipe.close()
+
+    stdout_thread = threading.Thread(
+        target=stream_output,
+        args=(process.stdout, sys.stdout, stdout_lines),
+        daemon=True,
+    )
+    stderr_thread = threading.Thread(
+        target=stream_output,
+        args=(process.stderr, sys.stderr, stderr_lines),
+        daemon=True,
+    )
+    stdout_thread.start()
+    stderr_thread.start()
+
+    return_code = process.wait()
+    stdout_thread.join()
+    stderr_thread.join()
+
+    if return_code == 0:
         return
 
-    if completed.stdout.strip():
-        print(completed.stdout.strip(), file=sys.stderr)
-    if completed.stderr.strip():
-        print(completed.stderr.strip(), file=sys.stderr)
+    stdout_text = "".join(stdout_lines)
+    stderr_text = "".join(stderr_lines)
     raise subprocess.CalledProcessError(
-        completed.returncode,
+        return_code,
         command,
-        output=completed.stdout,
-        stderr=completed.stderr,
+        output=stdout_text,
+        stderr=stderr_text,
     )
 
 
