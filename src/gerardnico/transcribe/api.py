@@ -56,6 +56,8 @@ class Request:
     # session id
     # some content are tagged as being not all public
     # and asked for a login, we need then to pass a session_id cookie
+    # Example of video: https://www.tiktok.com/@frdric422/video/7613409335158279446
+    # that would return: This post may not be comfortable for some audiences. Log in for access.
     session_id: str | None = None
 
 

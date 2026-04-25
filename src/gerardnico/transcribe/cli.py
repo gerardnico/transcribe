@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
 """
 Transcript
 """
 import logging
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.pretty import pprint
@@ -41,7 +39,7 @@ def print_context(
 def get(
     ctx: typer.Context,
     uri: str = typer.Argument(..., help='URI (URL or file path)'),
-    langs: Optional[str] = typer.Option(None, '-l', '--langs', help='Language codes (e.g., es,fr)'),
+    lang: str | None = typer.Option(None, '-l', '--lang', help='Language codes (e.g., es,fr)'),
     agent: bool = typer.Option(False, '-a', '--agent', help='Agent mode'),
     download: bool = typer.Option(False, '-ds', '--download-source', help='Download the source video'),
     session_id: str = typer.Option(None, '-sid', '--session-id', help='Browser Session Id Cookie')
@@ -49,7 +47,7 @@ def get(
     """Return a transcript from an audio/video from a URI"""
     contextBuilder: ContextBuilder = ctx.obj
     contextBuilder.uri = uri
-    contextBuilder.lang = langs
+    contextBuilder.lang = lang
     contextBuilder.download_source = download
     contextBuilder.session_id = session_id
     context = contextBuilder.build()
@@ -113,8 +111,9 @@ def main(
     verbose: bool = typer.Option(False, '-v', '--verbose', help='Verbose mode'),
     home: str | None = typer.Option(None, '--home',
                                     help='The home directory where transcripts and information are stored'),
-    print_context_arg: bool | None = typer.Option(False, '--print-context',
-                                              help='Print the context and exit')
+    print_context_arg: bool | None = typer.Option(
+        False, '--print-context',
+        help='Print the context and exit')
 ):
     """
     Transcribe all you want
