@@ -43,13 +43,15 @@ def get(
     uri: str = typer.Argument(..., help='URI (URL or file path)'),
     langs: Optional[str] = typer.Option(None, '-l', '--langs', help='Language codes (e.g., es,fr)'),
     agent: bool = typer.Option(False, '-a', '--agent', help='Agent mode'),
-    download: bool = typer.Option(False, '-ds', '--download-source', help='Download the source video')
+    download: bool = typer.Option(False, '-ds', '--download-source', help='Download the source video'),
+    session_id: str = typer.Option(None, '-sid', '--session-id', help='Browser Session Id Cookie')
 ):
     """Return a transcript from an audio/video from a URI"""
     contextBuilder: ContextBuilder = ctx.obj
     contextBuilder.uri = uri
     contextBuilder.lang = langs
     contextBuilder.download_source = download
+    contextBuilder.session_id = session_id
     context = contextBuilder.build()
 
     if contextBuilder.print_context:

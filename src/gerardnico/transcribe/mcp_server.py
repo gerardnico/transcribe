@@ -73,6 +73,9 @@ def get_mcp_server(service: Service):
             else:
                 # yt-dlp may send an error even if the subtitle is there
                 # so if we have a path, we don't have any error
+                #
+                # An error may just be that the user needs to log in because the content is flagged as being not public
+                # Example: TikTok: This post may not be comfortable for some audiences. Log in for access.
                 raise ToolError(f"Sorry, an error has occurred: {str(response.error)}")
 
         # We don't return a CallToolResult object

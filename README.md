@@ -51,6 +51,14 @@ transcribe get https://www.tiktok.com/@xxx/video/xxx
 docker run --rm ghcr.io/gerardnico/transcribe:latest get https://www.tiktok.com/@xxx/video/xxx
 ```
 
+For gated content, you can pass the `session-id`
+
+* For TikTok, the `sessionid` cookie value found in the browser
+
+```bash
+transcribe get --session-id 57bc2990711e7d14fxxx https://www.tiktok.com/@xxx/video/xxx
+```
+
 ### Start a Mcp Server
 
 Start a mcp server
@@ -58,6 +66,7 @@ Start a mcp server
 #### Mcp Local Stdio server
 
 To start a local stdio server
+
 ```bash
 # with the cli
 transcribe mcp
@@ -115,24 +124,9 @@ export OAUTH_CLIENT_SECRET="xxxxxxxxx"
 # OAuth OOrigin (Authorized JavaScript origins)
 export OAUTH_ORIGIN="https://mcp.exampke.com"
 ```
+
 You can then start a [mcp server](#start-a-mcp-server)
 
-## Support / Debug
+## Support / Contributing
 
-### Get the context information
-
-`--print-context`: show info without doing anything
-
-```bash
-transcribe --print-context get https://www.tiktok.com/@xxx/video/xxx
-```
-
-### Whisper - WinError 1114 A dynamic link library (DLL) initialization routine failed.
-
-````
-WinError 1114 A dynamic link library (DLL) initialization routine failed.
-Error loading "C:\Users\user\code\transcribe\.venv\Lib\site-packages\torch\lib\c10.dll" or one of its dependencies.
-````
-
-Download the
-latest [vc-redist](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist#latest-supported-redistributable-version)
+See [the dedicated page](CONTRIBUTING.md)

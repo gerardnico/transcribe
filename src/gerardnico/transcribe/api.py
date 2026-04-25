@@ -53,6 +53,10 @@ class Request:
     download: bool
     # Verbose
     verbose: bool = False
+    # session id
+    # some content are tagged as being not all public
+    # and asked for a login, we need then to pass a session_id cookie
+    session_id: str | None = None
 
 
 @dataclass
@@ -86,6 +90,7 @@ class ContextBuilder:
     # port: not 8000 because it's too common and will clash with already started process (such as kubelogin for instance)
     port: int = 8206
     origin: str | None = None
+    session_id: str | None = None
 
     def __init__(self, verbose=False):
         self.verbose = verbose
@@ -124,7 +129,7 @@ class ContextBuilder:
         if not origin:
             origin = os.environ.get("OAUTH_ORIGIN", "").strip()
             if not origin:
-                if self.host == "0.0.0.0": # docker run
+                if self.host == "0.0.0.0":  # docker run
                     # Mcp do not allow a non-local origin without https
                     # ie this url is not allowed: http://0.0.0.0:8206
                     origin = f"http://127.0.0.1:{self.port}"
@@ -140,7 +145,7 @@ class ContextBuilder:
 
         # certificates for ssl
         # mandatory for local test because the server needs to be in ssl
-        sslCertsDir = Path("./ssl-certs")
+        sslCertsDir = Path("./resources/ssl-certs")
         expected_cert_path = Path(sslCertsDir, "cert.pem")
         if expected_cert_path.exists():
             ssl_cert_file = expected_cert_path
@@ -149,7 +154,6 @@ class ContextBuilder:
                 raise ValueError(
                     f"When a cert exists, a key file should be available and was not found at {expected_key_path}")
             ssl_key_file = expected_key_path
-
 
         service = Service(
             home_directory=Path(transcribe_home),
@@ -255,12 +259,14 @@ class ContextBuilder:
                 service_name=service_name,
                 download=download_source,
                 verbose=self.verbose,
+                session_id=self.session_id
             )
         )
 
     def set_uri(self, param):
         self.uri = param
         return self
+
 
 TRANSCRIPT_PREFIX = "transcript"
 """

@@ -1,0 +1,5 @@
+# Netscape HTTP Cookie File
+
+.tiktok.com	TRUE	/	TRUE	0	sid_tt	%%session_id_placeholder%%
+.tiktok.com	TRUE	/	TRUE	0	sessionid	%%session_id_placeholder%%
+.tiktok.com	TRUE	/	TRUE	0	sessionid_ss	%%session_id_placeholder%%

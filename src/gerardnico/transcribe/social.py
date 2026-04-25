@@ -1,6 +1,7 @@
 import contextlib
 import io
 import logging
+from pathlib import Path
 
 import yt_dlp
 
@@ -8,6 +9,37 @@ from gerardnico.transcribe.api import Request, TRANSCRIPT_PREFIX
 from gerardnico.transcribe.error import AppError
 
 logger = logging.getLogger(__name__)
+
+
+def get_cookie_file(request: Request):
+    """Return a session cookie file from the service name and session id"""
+    cookie_file = (
+        Path(request.runtime_directory)
+        / f"cookies-{request.session_id}.txt"
+    )
+    if cookie_file.exists():
+        return str(cookie_file)
+
+    cookie_file.parent.mkdir(parents=True, exist_ok=True)
+
+    project_root = Path(__file__).resolve().parents[3]
+    cookie_template = (
+        project_root / "resources" / "cookies" / f"{request.service_name}.txt"
+    )
+    if not cookie_template.exists():
+        raise AppError(
+            f"Cookie template file does not exist for service '{request.service_name}': {cookie_template}",
+            1,
+        )
+
+    template_content = cookie_template.read_text(encoding="utf-8")
+    assert request.session_id is not None
+    session_cookie_content = template_content.replace(
+        "%%session_id_placeholder%%", request.session_id
+    )
+    cookie_file.write_text(session_cookie_content, encoding="utf-8")
+
+    return str(cookie_file)
 
 
 def execute_yt_dlp(request: Request):
@@ -82,6 +114,12 @@ def execute_yt_dlp(request: Request):
             f"{langs_ytd}"
         ]
 
+    if request.session_id is not None:
+        args += [
+            # mandatory when the content is flagged
+            "--cookies", get_cookie_file(request),
+        ]
+
     args += [
         # Download the subtitle (not generated)
         "--write-subs",
@@ -140,4 +178,4 @@ def execute_yt_dlp(request: Request):
     if final_system_exit is not None and final_system_exit.code != 0:
         # we create another error with the stdout for more context
         raise AppError(f"Transcript download error has occurred: {stdout_buf.getvalue()} {stderr_buf.getvalue()}",
-                      0 if final_system_exit.code is None else final_system_exit.code) from final_system_exit
+                       0 if final_system_exit.code is None else final_system_exit.code) from final_system_exit
