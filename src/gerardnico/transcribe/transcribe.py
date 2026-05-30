@@ -17,6 +17,7 @@ def get_transcript_from_request(request: Request) -> Response:
     # Check if we have it locally
     actual_transcript_path = get_transcript_from_runtime_dir(request)
     if actual_transcript_path:
+        logger.debug("Returning the transcript found in the runtime directory")
         return Response(
             path=actual_transcript_path
         )
@@ -56,8 +57,8 @@ def get_transcript_from_runtime_dir(request: Request):
         if not item.suffix.lower() == '.txt':
             continue
         if not request.lang is None:
-            subtitle_language = Path(item.name).stem.split(".", 1)[1]
-            asked_lang = request.lang[0]
+            subtitle_language = Path(item.name).stem.split(".", )[2]
+            asked_lang = request.lang
             if not asked_lang in subtitle_language.lower():
                 continue
         subtitle_path = item

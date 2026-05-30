@@ -18,24 +18,22 @@ tasks:
     # example: task transcribe --verbose mcp --transport http
     cmds:
       - |
-        export OAUTH_CLIENT_ID=$(pass transcribe/google/oauth-client-id)
-        export OAUTH_CLIENT_SECRET=$(pass transcribe/google/oauth-client-secret)
         uv run -m gerardnico.transcribe.cli {{.CLI_ARGS}}
   mcp:
     # starts transcribe as mcp server
     cmds:
       - |
-        export OAUTH_CLIENT_ID=$(pass transcribe/google/oauth-client-id)
-        export OAUTH_CLIENT_SECRET=$(pass transcribe/google/oauth-client-secret)
-        uv run -m gerardnico.transcribe.cli mcp --transport http
+        export OAUTH_CLIENT_ID=$(pass vault/google/transcribe/oauth-client-id)
+        export OAUTH_CLIENT_SECRET=$(pass vault/google/transcribe/oauth-client-secret)
+        uv run -m gerardnico.transcribe.cli mcp --transport http {{.CLI_ARGS}}
   release:
     # works also on Windows as gotask uses its own sh engine
     # call it with: task release -- {ARGS}
     # example: task release -- --help
     cmds:
       - |
-        export OAUTH_CLIENT_ID=$(pass transcribe/google/oauth-client-id)
-        export OAUTH_CLIENT_SECRET=$(pass transcribe/google/oauth-client-secret)
+        export OAUTH_CLIENT_ID=$(pass vault/transcribe/google/oauth-client-id)
+        export OAUTH_CLIENT_SECRET=$(pass vault/transcribe/google/oauth-client-secret)
         uv run python scripts/release.py {{.CLI_ARGS}}
   test:
     cmds:

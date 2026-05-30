@@ -40,6 +40,8 @@ class Request:
     uri: str
     lang: str | None
     runtime_directory: Path
+    # where the resources are stored
+    resource_directory: Path
     file_name: str
     file_extension: str
     video_path: Path
@@ -63,7 +65,9 @@ class Request:
 
 @dataclass
 class Context:
+    # the context for the mcp service
     service: Service
+    # the context when executing
     request: Request | None = None
 
 
@@ -144,10 +148,13 @@ class ContextBuilder:
             for email in raw_emails.split(",")
             if email.strip()
         }
+        # resources directory
+        project_root = Path(__file__).resolve().parents[3]
+        resources_directory = (project_root / "resources")
 
         # certificates for ssl
         # mandatory for local test because the server needs to be in ssl
-        sslCertsDir = Path("./resources/ssl-certs")
+        sslCertsDir = Path(resources_directory, "ssl-certs")
         expected_cert_path = Path(sslCertsDir, "cert.pem")
         if expected_cert_path.exists():
             ssl_cert_file = expected_cert_path
@@ -254,6 +261,7 @@ class ContextBuilder:
                 id=id_value,
                 lang=lang,
                 runtime_directory=runtime_directory,
+                resource_directory=resources_directory,
                 file_extension=file_extension,
                 file_name=file_name,
                 video_path=video_path,

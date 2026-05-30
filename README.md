@@ -51,12 +51,16 @@ transcribe get https://www.tiktok.com/@xxx/video/xxx
 docker run --rm ghcr.io/gerardnico/transcribe:latest get https://www.tiktok.com/@xxx/video/xxx
 ```
 
+### Get a transcript with a session id
+
 For gated content, you can pass the `session-id`
 
 * For TikTok, the `sessionid` cookie value found in the browser
 
 ```bash
 transcribe get --session-id 57bc2990711e7d14fxxx https://www.tiktok.com/@xxx/video/xxx
+# or
+export TIKTOK_SESSION_ID=57bc2990711e7d14fxxx transcribe get https://www.tiktok.com/@xxx/video/xxx
 ```
 
 ### Start a Mcp Server
@@ -81,6 +85,14 @@ docker run --rm ghcr.io/gerardnico/transcribe:latest mcp
 transcript mcp --transport http
 # with docker (host should be 0.0.0.0 and port 8206)
 docker run --rm ghcr.io/gerardnico/transcribe:latest mcp --host 0.0.0.0 --port 8206
+```
+
+then you can make JsonRpc call
+
+```bash
+curl -s -X POST "http://localhost:8206/mcp" \
+-H "Content-Type: application/json" \
+-d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"transcribe","arguments":{"url":"https://www.tiktok|youtubexxx","lang":"en"}},"id":1}' 2>&1
 ```
 
 ## Conf

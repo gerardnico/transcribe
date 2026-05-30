@@ -1,6 +1,7 @@
 import contextlib
 import io
 import logging
+import os
 from pathlib import Path
 
 import yt_dlp
@@ -22,10 +23,8 @@ def get_cookie_file(request: Request):
 
     cookie_file.parent.mkdir(parents=True, exist_ok=True)
 
-    project_root = Path(__file__).resolve().parents[3]
-    cookie_template = (
-        project_root / "resources" / "cookies" / f"{request.service_name}.txt"
-    )
+    cookie_template = (request.resource_directory / "cookies" / f"{request.service_name}.txt")
+
     if not cookie_template.exists():
         raise AppError(
             f"Cookie template file does not exist for service '{request.service_name}': {cookie_template}",
@@ -42,7 +41,7 @@ def get_cookie_file(request: Request):
     return str(cookie_file)
 
 
-def execute_yt_dlp(request: Request):
+def execute_yt_dlp(request: Request, session_id: str | None = None):
     """
     Execute the yt-dlp command
     Raises:
@@ -99,12 +98,11 @@ def execute_yt_dlp(request: Request):
     # You can prefix the language code with a "-" to exclude it from the requested languages, e.g.
     # --sub-langs all,-live_chat. Use --list-subs for a list of available language tags
     if not request.lang is None:
-        for lang in request.lang:
-            if lang == orig:
-                found_orig = True
-                langs_regexp.append(f"{case_insensitivity_flag}.*-{orig}.*")
-            else:
-                langs_regexp.append(f"{case_insensitivity_flag}{lang}.*")
+        if request.lang == orig:
+            found_orig = True
+            langs_regexp.append(f"{case_insensitivity_flag}.*-{orig}.*")
+        else:
+            langs_regexp.append(f"{case_insensitivity_flag}{request.lang}.*")
         langs_ytd = lang_separator.join(langs_regexp)
         # Don't download the orig subtitle if not specified
         if found_orig == False and request.service_name == "youtube":
@@ -114,9 +112,13 @@ def execute_yt_dlp(request: Request):
             f"{langs_ytd}"
         ]
 
-    if request.session_id is not None:
+    # session id is given only when an auth is needed
+    session_id = session_id
+    if not session_id:
+        session_id = request.session_id
+    if session_id:
         args += [
-            # mandatory when the content is flagged
+            # mandatory when the content is flagged, or we get a 403
             "--cookies", get_cookie_file(request),
         ]
 
@@ -177,5 +179,15 @@ def execute_yt_dlp(request: Request):
     # example: processing thumbnail: ERROR: Preprocessing: Error opening output files: Invalid argument
     if final_system_exit is not None and final_system_exit.code != 0:
         # we create another error with the stdout for more context
-        raise AppError(f"Transcript download error has occurred: {stdout_buf.getvalue()} {stderr_buf.getvalue()}",
-                       0 if final_system_exit.code is None else final_system_exit.code) from final_system_exit
+        err = stdout_buf.getvalue() + stderr_buf.getvalue()
+        # 403 and request without session id
+        if session_id is None and (err.__contains__("403") or err.__contains__("Log in for access")):
+            if request.service_name == "tiktok":
+                tiktok_session_id = os.environ.get("TIKTOK_SESSION_ID", None)
+                if tiktok_session_id:
+                    execute_yt_dlp(request, tiktok_session_id)
+            return
+        raise AppError(
+            f"Transcript download error has occurred: {err}",
+            0 if final_system_exit.code is None else final_system_exit.code) \
+            from final_system_exit

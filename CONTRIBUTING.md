@@ -29,6 +29,12 @@ Example:
 Working on Windows, don't work with the bash terminal.
 `uv sync` will create a Windows venv.
 
+## Start the next version
+
+```bash
+task transcribe -- args
+```
+
 ## Support / Debug
 
 ### Get the context information
