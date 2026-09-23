@@ -7,10 +7,10 @@ version = "0.1.0"
 # https://github.com/yt-dlp/yt-dlp/releases
 # curl-cffi is for the impersonnation: https://github.com/yt-dlp/yt-dlp#impersonation
 dependencies = [
-  "yt-dlp[default,curl-cffi]==2026.03.17",
+  "yt-dlp[curl-cffi,default]==2026.08.19",
   "webvtt-py==0.5.1",
-  "packaging==26.0",
-  "typer==0.24.1",
+  "packaging==26.3",
+  "typer==0.27.2",
   "fastmcp==3.2.4",
   "fastapi==0.136.0",
 ]

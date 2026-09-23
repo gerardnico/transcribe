@@ -10,7 +10,7 @@ tasks:
   install:
     cmds:
       - |
-        pipx install -e --force .
+        uv sync
   # Execute the `transcribe` cli
   transcribe:
     # works also on Windows as gotask uses its own sh engine
@@ -37,6 +37,7 @@ tasks:
         uv run python scripts/release.py {{.CLI_ARGS}}
   test:
     cmds:
+      # we cd in tests as JetBrains by default starts the test in the tests root directory
+      # verbose: uv run pytest -v
       - |
-        # verbose: uv run pytest -v
-        uv run pytest
+        cd tests && uv run --project .. pytest

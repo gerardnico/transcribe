@@ -59,7 +59,7 @@ def get_transcript_from_runtime_dir(request: Request):
         if not request.lang is None:
             subtitle_language = Path(item.name).stem.split(".", )[2]
             asked_lang = request.lang
-            if not asked_lang in subtitle_language.lower():
+            if asked_lang.lower() != subtitle_language.lower():
                 continue
         subtitle_path = item
         break

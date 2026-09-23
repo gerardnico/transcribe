@@ -24,11 +24,6 @@ Example:
 }
 ```
 
-## Windows
-
-Working on Windows, don't work with the bash terminal.
-`uv sync` will create a Windows venv.
-
 ## Start the next version
 
 ```bash
