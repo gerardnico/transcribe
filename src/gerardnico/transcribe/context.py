@@ -1,4 +1,5 @@
-from gerardnico.transcribe.api import McpTransport, localhost, Context, Service, Request
+from _pytest import pathlib
+from gerardnico.transcribe.api import McpTransport, localhost, Context, Service, Request, Provider
 from typing import Optional
 import os
 from pathlib import Path
@@ -12,9 +13,9 @@ import gerardnico.transcribe.lang as lang_package
 
 
 def context_builder(
-    verbose: bool = False,
+    verbose: bool | None = False,
     uri: str | None = None,
-    home: str | None = None,
+    home: Path | None = None,
     lang: Optional[str] = None,
     # download the source file?
     download_source: bool = False,
@@ -47,9 +48,11 @@ def context_builder(
     # or, we can add `%(upload_date>%Y-%m-%d)s` in a template
     transcribe_home = home
     if not transcribe_home:
-        transcribe_home = os.environ.get('TRANSCRIBE_HOME')
-        if not transcribe_home:
-            transcribe_home = os.environ.get('HOME') + "/.transcribe"
+        transcribe_home_env = os.environ.get('TRANSCRIBE_HOME')
+        if transcribe_home_env:
+            transcribe_home = Path(transcribe_home_env)
+        else:
+            transcribe_home = pathlib.Path.home() / ".transcribe"
 
     ssl_key_file = None
     ssl_cert_file = None
@@ -111,8 +114,10 @@ def context_builder(
         )
 
     parsed_uri: ParseResult = urlparse(uri)
+    provider: Provider
     if not parsed_uri.scheme or parsed_uri.scheme == "file":
-        service_name = "file"
+        provider = Provider.FILE
+        id_value = f'{parsed_uri.path}'
     else:
         apex_name = parsed_uri.netloc  # authority
 
@@ -123,39 +128,38 @@ def context_builder(
         # service name is the first part before the dot
         service_name = apex_name.split('.')[0]
 
-    # YouTube URL handling
-    if service_name == "youtube":
-        # YouTube video ID is usually in the 'v' query parameter
-        query_params = parse_qs(parsed_uri.query)
-        id_value = query_params.get('v', [''])[0]
-    # TikTok URL handling
-    elif service_name == "tiktok":
-        # TikTok ID is made of username (without @) + last part of path
-        path_parts = [p for p in parsed_uri.path.split('/') if p]
-        if len(path_parts) != 3 or (not path_parts[0].startswith('@')) or path_parts[1] != 'video':
-            raise ValueError("The tiktok url is not valid")
-        username = path_parts[0][1:]  # remove @
-        video_id = path_parts[2]
-        id_value = f"{username}-{video_id}"
-    elif service_name == "x" or service_name == "twitter":
-        # https://x.com/forrestpknight/status/2012561898097594545
-        path_parts = [p for p in parsed_uri.path.split('/') if p]
-        if len(path_parts) != 3 and path_parts[1] != 'status':
-            raise ValueError("The x url is not valid")
-        username = path_parts[0]
-        video_id = path_parts[2]
-        id_value = f"{username}-{video_id}"
-    elif service_name == "file":
-        id_value = f'{parsed_uri.path}'
-    else:
-        raise ValueError(f"{service_name} not yet supported")
+        match service_name:
+            case "tiktok":
+                provider = Provider.TIKTOK
+                # TikTok ID is made of username (without @) + last part of path
+                path_parts = [p for p in parsed_uri.path.split('/') if p]
+                if len(path_parts) != 3 or (not path_parts[0].startswith('@')) or path_parts[1] != 'video':
+                    raise ValueError("The tiktok url is not valid")
+                username = path_parts[0][1:]  # remove @
+                video_id = path_parts[2]
+                id_value = f"{username}-{video_id}"
+            case "youtube":
+                provider = Provider.YOUTUBE
+                # YouTube video ID is usually in the 'v' query parameter
+                query_params = parse_qs(parsed_uri.query)
+                id_value = query_params.get('v', [''])[0]
+            case "x" | "twitter":
+                provider = Provider.TWITTER
+                # https://x.com/forrestpknight/status/2012561898097594545
+                path_parts = [p for p in parsed_uri.path.split('/') if p]
+                if len(path_parts) != 3 and path_parts[1] != 'status':
+                    raise ValueError("The x url is not valid")
+                username = path_parts[0]
+                video_id = path_parts[2]
+                id_value = f"{username}-{video_id}"
+            case _:
+                raise ValueError(f"{service_name} not yet supported")
 
-    runtime_directory = Path(f"{transcribe_home}/{service_name}/{id_value}")
+    runtime_directory = Path(f"{transcribe_home}/{provider.value}/{id_value}")
     runtime_directory.mkdir(parents=True, exist_ok=True)
 
-
     if lang is None:
-        if service_name == "youtube":
+        if provider == Provider.YOUTUBE:
             lang = LANG_ORIGINE
         else:
             # we let yt-dlp decide, normally the spoken language of the video
@@ -191,7 +195,7 @@ def context_builder(
             file_name=file_name,
             video_path=video_path,
             audio_path=audio_path,
-            service_name=service_name,
+            provider=provider,
             download=download_source,
             verbose=verbose,
             session_id=session_id

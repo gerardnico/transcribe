@@ -56,11 +56,11 @@ def get_mcp_server(service: Service):
     @mcp.tool()
     async def get_transcript(
         uri: str = Field(description="The uri of the resource to transcribe"),
-        lang: str | None = Field(description="The lang of transcript")
+        lang: str | None = Field(description="The transcript language on 2 letters or a locale tag")
     ) -> str:
         """Get a transcript from a resource"""
         context = context_builder(
-            home=str(service.home_directory),
+            home=service.home_directory,
             uri=uri,
             lang=lang
         )

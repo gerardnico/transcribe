@@ -39,7 +39,7 @@ def print_context(
 def get(
     ctx: typer.Context,
     uri: str = typer.Argument(..., help='URI (URL or file path)'),
-    lang: str | None = typer.Option(None, '-l', '--lang', help='Language codes (e.g., es,fr)'),
+    lang: str | None = typer.Option(None, '-l', '--lang', help='Language codes (e.g., es,fr) or locale'),
     agent: bool = typer.Option(False, '-a', '--agent', help='Agent mode'),
     download: bool = typer.Option(False, '-ds', '--download-source', help='Download the source video'),
     session_id: str = typer.Option(None, '-sid', '--session-id', help='Browser Session Id Cookie')
@@ -52,7 +52,8 @@ def get(
         lang=lang,
         download_source=download,
         session_id=session_id,
-        home=global_options.home_directory
+        home=global_options.home_directory,
+        verbose=global_options.verbose
     )
 
     if global_options.print_context:
@@ -101,7 +102,8 @@ def mcp(
         host=host,
         port=port,
         origin=origin,
-        home=global_options.home_directory
+        home=global_options.home_directory,
+        verbose=global_options.verbose
     )
 
     if global_options.print_context:
@@ -117,7 +119,8 @@ def mcp(
 def main(
     ctx: typer.Context,
     verbose: bool = typer.Option(False, '-v', '--verbose', help='Verbose mode'),
-    home: str | None = typer.Option(None, '--home',
+    home: Path | None = typer.Option(None, '--home',
+                                    resolve_path=True,
                                     help='The home directory where transcripts and information are stored'),
     print_context_arg: bool | None = typer.Option(
         False, '--print-context',
@@ -129,7 +132,8 @@ def main(
     # the above comment is shown in the help when no command is asked
     context = CliGlobalOptions(
         home_directory=home,
-        print_context=print_context_arg
+        print_context=print_context_arg,
+        verbose=verbose
     )
     logger.info(f"About to execute command: {ctx.invoked_subcommand}")
     ctx.obj = context  # user object

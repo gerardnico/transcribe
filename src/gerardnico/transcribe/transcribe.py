@@ -1,15 +1,15 @@
 import logging
 from pathlib import Path
 
-from gerardnico.transcribe import social, ffmpeg, vtt, lang
-from gerardnico.transcribe.api import Response, Request, TRANSCRIPT_PREFIX
+from gerardnico.transcribe import social, ffmpeg, vtt, lang, pillow_image
+from gerardnico.transcribe.api import Response, Request, TRANSCRIPT_PREFIX, Provider
 from gerardnico.transcribe.error import AppError
 
 logger = logging.getLogger(__name__)
 
 
 def get_transcript_from_request(request: Request) -> Response:
-    if request.service_name == "file":
+    if request.provider == "file":
         raise Exception("File processing is not yet implemented")
 
     # Check if we have it locally
@@ -105,6 +105,15 @@ def post_processing(request: Request) -> None:
         if path != original_path and not path.exists():
             original_path.rename(path)
             logger.info(f"Renamed {original_path.name} -> {path.name}")
+
+        # TikTok bug
+        # ie extension is not the content type but the last path in the url
+        if request.provider == Provider.TIKTOK and path.suffix == ".image":
+            image_extension = pillow_image.get_image_extension(path)
+            if image_extension is not None:
+                new_path = path.with_suffix(image_extension)
+                path.rename(new_path)
+                path = new_path
 
         # Check if it's a file and has .vtt extension
         if path.is_file() and path.suffix.lower() == '.vtt':

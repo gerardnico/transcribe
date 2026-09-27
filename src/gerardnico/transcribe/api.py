@@ -17,8 +17,9 @@ class McpTransport(str, Enum):
 @dataclass
 class CliGlobalOptions:
     # Global options in the cli
-    home_directory: str | None
+    home_directory: Path | None
     print_context: bool | None
+    verbose: bool | None
 
 
 @dataclass
@@ -37,6 +38,21 @@ class Service:
     # 8206 (not 8000, too common)
     binding_port: int = 8206
 
+class Provider(str, Enum):
+    """The provider that we wrap"""
+    TIKTOK = ("tiktok", "tiktok.com")
+    YOUTUBE = ("youtube", "youtube.com")
+    TWITTER = ("twitter", "x.com")
+    FILE = ("other", None)
+
+    def __new__(cls, value: str, host: str | None):
+        # noinspection PyTypeChecker
+        obj = str.__new__(cls, value)
+        # https://docs.python.org/3/library/enum.html#supported-sunder-names
+        obj._value_ = value
+        # used to see if the agent makes calls to its base
+        obj.host = host
+        return obj
 
 @dataclass
 class Request:
@@ -53,8 +69,8 @@ class Request:
     audio_path: Path
     # The id
     id: str
-    # The service (File, YouTube, ...)
-    service_name: str
+    # The provider name (File, YouTube, ...)
+    provider: Provider
     # download the file?
     download: bool
     # Verbose

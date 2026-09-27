@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 import yt_dlp
-from gerardnico.transcribe.api import Request, TRANSCRIPT_PREFIX
+from gerardnico.transcribe.api import Request, TRANSCRIPT_PREFIX, Provider
 from gerardnico.transcribe.error import AppError
 
 logger = logging.getLogger(__name__)
@@ -22,11 +22,11 @@ def get_cookie_file(request: Request):
 
     cookie_file.parent.mkdir(parents=True, exist_ok=True)
 
-    cookie_template = (request.resource_directory / "cookies" / f"{request.service_name}.txt")
+    cookie_template = (request.resource_directory / "cookies" / f"{request.provider}.txt")
 
     if not cookie_template.exists():
         raise AppError(
-            f"Cookie template file does not exist for service '{request.service_name}': {cookie_template}",
+            f"Cookie template file does not exist for service '{request.provider}': {cookie_template}",
             1,
         )
 
@@ -84,12 +84,6 @@ def execute_yt_dlp(request: Request, session_id: str | None = None):
     # with yt_dlp.YoutubeDL(ydl_opts) as ydl:
     #    info = ydl.extract_info(url, download=False)
 
-    if not request.verbose:
-        args += [
-            "--quiet",
-            "--no-warnings"
-        ]
-
     # Lang selections:
     # By default, we don't set a lang. We let yt-dlp decide
     # --sub-langs: Languages of the subtitles to download (can be regex) or "all" separated by commas, e.g.
@@ -104,7 +98,7 @@ def execute_yt_dlp(request: Request, session_id: str | None = None):
             langs_regexp.append(f"{case_insensitivity_flag}{request.lang}.*")
         langs_ytd = lang_separator.join(langs_regexp)
         # Don't download the orig subtitle if not specified
-        if found_orig == False and request.service_name == "youtube":
+        if found_orig == False and request.provider == "youtube":
             langs_ytd = f"{langs_ytd}{lang_separator}-.*-{orig}.*"
         args += [
             "--sub-langs",
@@ -143,8 +137,6 @@ def execute_yt_dlp(request: Request, session_id: str | None = None):
         "--write-thumbnail",
         # not .%(ext)s as it's added by yt_dlp as image
         "-o", f"thumbnail:thumbnail",
-        # Convert the thumbnails to another format (currently supported: jpg, png, webp)
-        "--convert-thumbnails", "webp",
         # Number of seconds to sleep before each subtitle download
         "--sleep-subtitles", f"{sleep}",
         # The paths where the files should be downloaded.
@@ -161,7 +153,19 @@ def execute_yt_dlp(request: Request, session_id: str | None = None):
         "--paths", "subtitle:.",
         request.uri
     ]
-    logger.info("Command: yt-dlp " + " ".join(str(x) for x in args))
+
+    if request.provider != Provider.TIKTOK:
+        # Does not work on TikTok: bug on yt-dlp as the extension is given by the last name in the path
+        # and not by the content type return type
+        # So we get a file-origin.image with this  URL example: https://tiktokcdn-eu.com/file-origin.image?dr=10395&x-expires
+        #
+        # Convert the thumbnails to another format (currently supported: jpg, png, webp)
+        args += [
+            "--convert-thumbnails", "webp",
+        ]
+
+    yt_dlp_command = "yt-dlp " + " ".join(f"\"{str(x)}\"" for x in args)
+    logger.info(f"Command: {yt_dlp_command}")
 
     # execution and stdout/stderr capture
     stdout_buf = io.StringIO()
@@ -174,19 +178,32 @@ def execute_yt_dlp(request: Request, session_id: str | None = None):
             # yt_dlp.main(args) finish with a SystemExit every time even on success
             final_system_exit = e
 
+    # we create another error with the stdout for more context
+    std = stdout_buf.getvalue() + stderr_buf.getvalue()
+    if request.verbose:
+        # history, we don't use the --quiet and --no-warnings
+        # because an error in yt-dlp without context has no value
+        # example:
+        # the error: ERROR: Preprocessing: Error opening output files: Encoder not found
+        # can not be understood without the stdout: [ThumbnailsConvertor] Converting thumbnail .image to webp
+        if not request.verbose:
+            args += [
+
+            ]
+        logger.info(f"yt-dlp stdout and stderr:\n{std}")
+
     # Note that if there is any error, the transcript may have been downloaded
     # example: processing thumbnail: ERROR: Preprocessing: Error opening output files: Invalid argument
     if final_system_exit is not None and final_system_exit.code != 0:
-        # we create another error with the stdout for more context
-        err = stdout_buf.getvalue() + stderr_buf.getvalue()
+
         # 403 and request without session id
-        if session_id is None and (err.__contains__("403") or err.__contains__("Log in for access")):
-            if request.service_name == "tiktok":
+        if session_id is None and (std.__contains__("403") or std.__contains__("Log in for access")):
+            if request.provider == "tiktok":
                 tiktok_session_id = os.environ.get("TIKTOK_SESSION_ID", None)
                 if tiktok_session_id:
                     execute_yt_dlp(request, tiktok_session_id)
             return
         raise AppError(
-            f"Transcript download error has occurred: {err}",
+            f"Yt_dlp download error has occurred. Stderr was: {std}\nwith command: {yt_dlp_command}",
             0 if final_system_exit.code is None else final_system_exit.code) \
             from final_system_exit

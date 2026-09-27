@@ -8,7 +8,7 @@ from mcp import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 from mcp.types import TextContent
 
-from gerardnico.transcribe.api import TRANSCRIPT_PREFIX
+from gerardnico.transcribe.api import TRANSCRIPT_PREFIX, Provider
 from gerardnico.transcribe.transcribe import get_transcript_from_request
 
 
@@ -16,12 +16,12 @@ def test_file_url_request():
     context = context_builder(
         uri="file.mp"
     )
-    assert context.request.service_name == "file"
+    assert context.request.provider == Provider.FILE
 
 
 def test_tiktok_url_request():
     context = context_builder(uri="https://www.tiktok.com/@beanulaegzo/video/7630306225086876959")
-    assert context.request.service_name == "tiktok"
+    assert context.request.provider == Provider.TIKTOK
     assert context.request.runtime_directory == Path(
         f"{context.service.home_directory}/tiktok/beanulaegzo-7630306225086876959")
     assert context.request.file_extension == "mp4"
