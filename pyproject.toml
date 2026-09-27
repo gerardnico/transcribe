@@ -13,6 +13,7 @@ dependencies = [
   "typer==0.27.2",
   "fastmcp==3.2.4",
   "fastapi==0.136.0",
+  "langcodes>=3.5.1",
 ]
 
 [project.optional-dependencies]
@@ -69,5 +70,5 @@ where = ["src"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"        # enables automatic async detection
 testpaths = ["tests"]        # where pytest looks
-pythonpath = ["src"]         # add src/ to sys.path (src layout)
+pythonpath = ["src", "tests"]         # add src/ to sys.path (src layout)
 python_files = ["test_*.py"]

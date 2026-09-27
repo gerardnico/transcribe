@@ -1,25 +1,26 @@
 from pathlib import Path
 
 import pytest
+from gerardnico.transcribe.context import context_builder
+from tests.gerardnico.transcribe.test_utils import get_tests_dir
+
 from mcp import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 from mcp.types import TextContent
 
-from gerardnico.transcribe.api import ContextBuilder, TRANSCRIPT_PREFIX
+from gerardnico.transcribe.api import TRANSCRIPT_PREFIX
 from gerardnico.transcribe.transcribe import get_transcript_from_request
 
 
 def test_file_url_request():
-    context = (
-        ContextBuilder()
-        .set_uri("file.mp")
-        .build()
+    context = context_builder(
+        uri="file.mp"
     )
     assert context.request.service_name == "file"
 
 
 def test_tiktok_url_request():
-    context = ContextBuilder().set_uri("https://www.tiktok.com/@beanulaegzo/video/7630306225086876959").build()
+    context = context_builder(uri="https://www.tiktok.com/@beanulaegzo/video/7630306225086876959")
     assert context.request.service_name == "tiktok"
     assert context.request.runtime_directory == Path(
         f"{context.service.home_directory}/tiktok/beanulaegzo-7630306225086876959")
@@ -39,13 +40,13 @@ async def test_mcp_stdio_command():
     user_id = "user"
     post_id = "id"
     uri = "https://www.tiktok.com/@%s/video/%s" % (user_id, post_id)
-    transcribe_home = Path("./fixtures/home")
+    transcribe_home = get_tests_dir() / "fixtures" / "home"
     assert transcribe_home.exists(), f"{transcribe_home} does exist"
-    context_builder = ContextBuilder()
-    context_builder.home = str(transcribe_home)
-    context_builder.uri = uri
-    context_builder.lang = "eng-US"
-    context = context_builder.build()
+    context = context_builder(
+        home=str(transcribe_home),
+        uri=uri,
+        lang="eng-US"
+    )
     if not context.request:
         raise Exception("Request should not be null")
     response = get_transcript_from_request(context.request)
@@ -54,7 +55,7 @@ async def test_mcp_stdio_command():
         transcribe_home,
         "tiktok",
         "%s-%s" % (user_id, post_id),
-        TRANSCRIPT_PREFIX + ".subtitle.eng-US.txt")
+        TRANSCRIPT_PREFIX + ".subtitle.en.txt")
     assert response.path == expected_path
 
     # Test cli call - run as a subprocess
@@ -74,5 +75,5 @@ async def test_mcp_stdio_command():
             # Call a tool
             result = await session.call_tool("get_transcript", {"uri": uri, "lang": context.request.lang})
             assert result is not None
-            expectedText = "TikTok transcript"
+            expectedText = "TikTok transcript\n"
             assert result.content == [TextContent(type="text", text=expectedText)]

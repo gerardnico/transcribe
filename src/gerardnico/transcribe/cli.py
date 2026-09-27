@@ -5,11 +5,11 @@ import logging
 from pathlib import Path
 
 import typer
-from rich.pretty import pprint
-
-from gerardnico.transcribe.api import McpTransport, ContextBuilder, localhost, Context
+from gerardnico.transcribe.api import McpTransport, localhost, Context, CliGlobalOptions
+from gerardnico.transcribe.context import context_builder
 from gerardnico.transcribe.mcp_server import mcp_run
 from gerardnico.transcribe.transcribe import get_transcript_from_request, list_transcripts
+from rich.pretty import pprint
 
 typerCli = typer.Typer()
 
@@ -45,14 +45,17 @@ def get(
     session_id: str = typer.Option(None, '-sid', '--session-id', help='Browser Session Id Cookie')
 ):
     """Return a transcript from an audio/video from a URI"""
-    contextBuilder: ContextBuilder = ctx.obj
-    contextBuilder.uri = uri
-    contextBuilder.lang = lang
-    contextBuilder.download_source = download
-    contextBuilder.session_id = session_id
-    context = contextBuilder.build()
 
-    if contextBuilder.print_context:
+    global_options: CliGlobalOptions = ctx.obj
+    context = context_builder(
+        uri=uri,
+        lang=lang,
+        download_source=download,
+        session_id=session_id,
+        home=global_options.home_directory
+    )
+
+    if global_options.print_context:
         print_context(context)
         return
 
@@ -71,11 +74,13 @@ def get(
         else:
             raise FileNotFoundError(f"No transcript found at {request.runtime_directory}")
     else:
-        logger.info(f"Transcript files:")
+        print(f"\nTranscript file: {response.path}")
+        print(f"Transcript files list:")
         list_transcripts(request)
 
     # Raise if any error
     if response.error is not None and response.error.code != 0:
+        logger.error(f"The process has run successfully but an error or warning reporting has been seen")
         raise response.error
 
 
@@ -89,14 +94,17 @@ def mcp(
 ):
     """Start a Mcp Server"""
     logger.info(f"{transport.name} Mcp server started")
-    contextBuilder: ContextBuilder = ctx.obj
-    contextBuilder.transport = transport
-    contextBuilder.host = host
-    contextBuilder.port = port
-    contextBuilder.origin = origin
-    context = contextBuilder.build()
+    global_options: CliGlobalOptions = ctx.obj
 
-    if contextBuilder.print_context:
+    context = context_builder(
+        transport=transport,
+        host=host,
+        port=port,
+        origin=origin,
+        home=global_options.home_directory
+    )
+
+    if global_options.print_context:
         print_context(context)
         return
 
@@ -119,9 +127,10 @@ def main(
     Transcribe all you want
     """
     # the above comment is shown in the help when no command is asked
-    context = ContextBuilder(verbose)
-    context.home = home
-    context.print_context = print_context_arg
+    context = CliGlobalOptions(
+        home_directory=home,
+        print_context=print_context_arg
+    )
     logger.info(f"About to execute command: {ctx.invoked_subcommand}")
     ctx.obj = context  # user object
 

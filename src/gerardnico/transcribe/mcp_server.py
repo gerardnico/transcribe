@@ -8,10 +8,11 @@ import uvicorn
 from fastapi import FastAPI
 from fastmcp import FastMCP
 from fastmcp.server.auth.providers.google import GoogleProvider
+from gerardnico.transcribe.context import context_builder
 from mcp.server.fastmcp.exceptions import ToolError
 from pydantic import Field
 
-from gerardnico.transcribe.api import ContextBuilder, McpTransport, Service
+from gerardnico.transcribe.api import McpTransport, Service
 from gerardnico.transcribe.transcribe import get_transcript_from_request
 
 logger = logging.getLogger(__name__)
@@ -55,14 +56,14 @@ def get_mcp_server(service: Service):
     @mcp.tool()
     async def get_transcript(
         uri: str = Field(description="The uri of the resource to transcribe"),
-        lang: str|None = Field(description="The lang of transcript")
+        lang: str | None = Field(description="The lang of transcript")
     ) -> str:
         """Get a transcript from a resource"""
-        contextBuilder = ContextBuilder()
-        contextBuilder.home = str(service.home_directory)
-        contextBuilder.uri = uri
-        contextBuilder.lang = lang
-        context = contextBuilder.build()
+        context = context_builder(
+            home=str(service.home_directory),
+            uri=uri,
+            lang=lang
+        )
         if not context.request:
             raise Exception("Internal exception, the context should have a request object")
         response = get_transcript_from_request(context.request)

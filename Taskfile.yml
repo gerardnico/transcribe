@@ -32,8 +32,8 @@ tasks:
     # example: task release -- --help
     cmds:
       - |
-        export OAUTH_CLIENT_ID=$(pass vault/transcribe/google/oauth-client-id)
-        export OAUTH_CLIENT_SECRET=$(pass vault/transcribe/google/oauth-client-secret)
+        export OAUTH_CLIENT_ID=$(pass vault/google/transcribe/oauth-client-id)
+        export OAUTH_CLIENT_SECRET=$(pass vault/google/transcribe/oauth-client-secret)
         uv run python scripts/release.py {{.CLI_ARGS}}
   test:
     cmds:

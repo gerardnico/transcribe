@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 
 import yt_dlp
-
 from gerardnico.transcribe.api import Request, TRANSCRIPT_PREFIX
 from gerardnico.transcribe.error import AppError
 

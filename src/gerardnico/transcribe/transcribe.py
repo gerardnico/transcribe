@@ -1,14 +1,12 @@
 import logging
 from pathlib import Path
 
+from gerardnico.transcribe import social, ffmpeg, vtt, lang
 from gerardnico.transcribe.api import Response, Request, TRANSCRIPT_PREFIX
 from gerardnico.transcribe.error import AppError
-from gerardnico.transcribe.ffmpeg import video_to_audio
-from gerardnico.transcribe.social import execute_yt_dlp
-from gerardnico.transcribe.vtt import post_processing_vtt
-
 
 logger = logging.getLogger(__name__)
+
 
 def get_transcript_from_request(request: Request) -> Response:
     if request.service_name == "file":
@@ -26,7 +24,7 @@ def get_transcript_from_request(request: Request) -> Response:
     final_error = None
     try:
         # Download subtitle and optionally the video
-        execute_yt_dlp(request)
+        social.execute_yt_dlp(request)
     except AppError as e:
         # We capture it as the error could be after that the transcript as been downloaded
         # example: processing thumbnail: ERROR: Preprocessing: Error opening output files: Invalid argument
@@ -56,10 +54,9 @@ def get_transcript_from_runtime_dir(request: Request):
             continue
         if not item.suffix.lower() == '.txt':
             continue
-        if not request.lang is None:
+        if request.lang is not None:
             subtitle_language = Path(item.name).stem.split(".", )[2]
-            asked_lang = request.lang
-            if asked_lang.lower() != subtitle_language.lower():
+            if request.lang != subtitle_language:
                 continue
         subtitle_path = item
         break
@@ -101,10 +98,17 @@ def post_processing(request: Request) -> None:
         raise ValueError(f"Runtime Directory does not exist: {directory_path}")
 
     vtt_file_count = 0
-    for item in directory_path.iterdir():
+    for original_path in directory_path.iterdir():
+
+        # Check normalize the lang in the transcript
+        path = lang.normalize_transcript_path(original_path)
+        if path != original_path and not path.exists():
+            original_path.rename(path)
+            logger.info(f"Renamed {original_path.name} -> {path.name}")
+
         # Check if it's a file and has .vtt extension
-        if item.is_file() and item.suffix.lower() == '.vtt':
-            post_processing_vtt(item)
+        if path.is_file() and path.suffix.lower() == '.vtt':
+            vtt.post_processing_vtt(path)
             vtt_file_count += 1
 
     if vtt_file_count == 0:
@@ -114,7 +118,7 @@ def post_processing(request: Request) -> None:
 
     logger.info(f"Trying to transcribe")
     if get_speech_to_text(request, vtt_file_count):
-        video_to_audio(request)
+        ffmpeg.video_to_audio(request)
         # Whisper is optional in production, so import it only when needed.
         try:
             from gerardnico.transcribe.whisper_processing import transcribe_with_openai_whisper
