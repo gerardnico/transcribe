@@ -1,16 +1,24 @@
-export VIRTUAL_ENV="$PROJECT_ROOT/.venv"
-export UV_PROJECT_ENVIRONMENT="$VIRTUAL_ENV"
+# Not in the project as the IDE configuration will be lost if the project is moved
+# ~/.virtualenvs is a [convention](https://docs.python.org/3/library/venv.html)
+export UV_PROJECT_ENVIRONMENT="$HOME/.virtualenvs/aitm"
 
 # creates .venv + installs deps automatically
 uv sync
 
-# activate
-if [ -f ".venv/Scripts/activate" ]; then
+# Activate
+# Modify the path
+if [ -f "$UV_PROJECT_ENVIRONMENT/Scripts/activate" ]; then
   # Windows (Git Bash / WSL boundary)
-  source .venv/Scripts/activate
+  source "$UV_PROJECT_ENVIRONMENT/Scripts/activate"
 else
   # Linux/macOS
-  source .venv/bin/activate
+  source "$UV_PROJECT_ENVIRONMENT/bin/activate"
+fi
+
+# When a virtual environment is active,
+# the VIRTUAL_ENV environment variable is set
+if [ "$VIRTUAL_ENV" != "$UV_PROJECT_ENVIRONMENT" ]; then
+  echo "Virtual env value ($VIRTUAL_ENV) is not $UV_PROJECT_ENVIRONMENT"
 fi
 
 # Cert file
