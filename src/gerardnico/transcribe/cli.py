@@ -42,7 +42,8 @@ def get(
     lang: str | None = typer.Option(None, '-l', '--lang', help='Language codes (e.g., es,fr) or locale'),
     agent: bool = typer.Option(False, '-a', '--agent', help='Agent mode'),
     download: bool = typer.Option(False, '-ds', '--download-source', help='Download the source video'),
-    session_id: str = typer.Option(None, '-sid', '--session-id', help='Browser Session Id Cookie')
+    session_id: str = typer.Option(None, '-sid', '--session-id', help='Browser Session Id Cookie'),
+    dry_run: bool = typer.Option(False, '-dr', '--dry-run', help='Run without executing any command')
 ):
     """Return a transcript from an audio/video from a URI"""
 
@@ -52,8 +53,9 @@ def get(
         lang=lang,
         download_source=download,
         session_id=session_id,
-        home=global_options.home_directory,
-        verbose=global_options.verbose
+        transcribe_home=global_options.home_directory,
+        verbose=global_options.verbose,
+        dry_run=dry_run
     )
 
     if global_options.print_context:
@@ -102,7 +104,7 @@ def mcp(
         host=host,
         port=port,
         origin=origin,
-        home=global_options.home_directory,
+        transcribe_home=global_options.home_directory,
         verbose=global_options.verbose
     )
 

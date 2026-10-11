@@ -13,21 +13,33 @@ import gerardnico.transcribe.lang as lang_package
 
 
 def context_builder(
-    verbose: bool | None = False,
+    verbose: bool = False,
     uri: str | None = None,
-    home: Path | None = None,
+    transcribe_home: Path | None = None,
     lang: Optional[str] = None,
-    # download the source file?
     download_source: bool = False,
-    # mcp Transport
     transport: McpTransport = McpTransport.stdio,
-    # host
     host: str = localhost,
-    # port: not 8000 because it's too common and will clash with already started process (such as kubelogin for instance)
     port: int = 8206,
     origin: str | None = None,
-    session_id: str | None = None
+    session_id: str | None = None,
+    dry_run: bool = False
 ):
+    """
+
+    :param dry_run: run without executing any command
+    :param verbose: add more info
+    :param uri: the location of the transcript to download
+    :param transcribe_home: the transcribe home
+    :param lang: the lang of the transcript to download.
+    :param download_source: Download the source file
+    :param transport: Mcp Transport
+    :param host: Mcp host
+    :param port: Mcp port - not 8000 because it's too common and will clash with already started process (such as kubelogin for instance)
+    :param origin:
+    :param session_id:
+    :return:
+    """
     verbose = verbose
     logging_level = logging.INFO
     if verbose:
@@ -46,7 +58,7 @@ def context_builder(
     # Note that if we want to add a timestamp, we
     # * need to get the info.json first
     # or, we can add `%(upload_date>%Y-%m-%d)s` in a template
-    transcribe_home = home
+    transcribe_home = transcribe_home
     if not transcribe_home:
         transcribe_home_env = os.environ.get('TRANSCRIBE_HOME')
         if transcribe_home_env:
@@ -198,6 +210,7 @@ def context_builder(
             provider=provider,
             download=download_source,
             verbose=verbose,
-            session_id=session_id
+            session_id=session_id,
+            dry_run=dry_run
         )
     )

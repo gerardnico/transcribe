@@ -60,7 +60,7 @@ def get_mcp_server(service: Service):
     ) -> str:
         """Get a transcript from a resource"""
         context = context_builder(
-            home=service.home_directory,
+            transcribe_home=service.home_directory,
             uri=uri,
             lang=lang
         )

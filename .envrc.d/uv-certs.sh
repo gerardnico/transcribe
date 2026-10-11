@@ -1,6 +1,6 @@
 # Not in the project as the IDE configuration will be lost if the project is moved
 # ~/.virtualenvs is a [convention](https://docs.python.org/3/library/venv.html)
-export UV_PROJECT_ENVIRONMENT="$HOME/.virtualenvs/aitm"
+export UV_PROJECT_ENVIRONMENT="$HOME/.virtualenvs/${PROJECT_NAME}"
 
 # creates .venv + installs deps automatically
 uv sync

@@ -3,8 +3,7 @@
 * Verb: Do: Transcribe means to convert speech or audio into written text.
 * Noun: Done: A transcript is the written text that results from transcribing.
 
-
-<img alt="Claude Conversation with a Transcribe Prompt" src="contrib/img/transcribe-claude-illustration.jpg" width="400px"/>
+<img alt="Claude Conversation with a Transcribe Prompt" src="contrib/img/transcribe-claude-illustration.jpg" width="800" style="max-width: 400px"/>
 
 ## Install
 
@@ -100,7 +99,8 @@ curl -s -X POST "http://localhost:8206/mcp" \
 
 ## MCP Client (Claude/ChatGpt)
 
-Add the [Mcp Server](#mcp-remote-http-server) to your MCP client (Claude, ChatGpt) as App/connector, then prompt it for a transcript. The default language is `english`.
+Add the [Mcp Server](#mcp-remote-http-server) to your MCP client (Claude, ChatGpt) as App/connector, then prompt it for
+a transcript. The default language is `english`.
 If the video is another language, you need to add it
 
 <img alt="Claude Conversation with a Transcribe Prompt" src="contrib/img/transcribe-claude-illustration.jpg" width="400px"/>

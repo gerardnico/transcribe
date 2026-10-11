@@ -40,16 +40,12 @@ def get_cookie_file(request: Request):
     return str(cookie_file)
 
 
-def execute_yt_dlp(request: Request, session_id: str | None = None):
-    """
-    Execute the yt-dlp command
-    Raises:
-        AppError: If execution exits
-    """
+def get_args(request: Request, session_id: str | None, download: bool | None = None):
     args = []
 
     # Download video?
-    if request.download:
+    download = download or request.download
+    if download:
         args += [
             # https://github.com/yt-dlp/yt-dlp#preset-aliases
             "-t", request.file_extension,
@@ -164,8 +160,20 @@ def execute_yt_dlp(request: Request, session_id: str | None = None):
             "--convert-thumbnails", "webp",
         ]
 
+    return args
+
+
+def execute_yt_dlp(request: Request, session_id: str | None = None, video_download: bool | None = None):
+    """
+    Execute the yt-dlp command
+    Raises:
+        AppError: If execution exits
+    """
+    args = get_args(request, session_id, video_download)
     yt_dlp_command = "yt-dlp " + " ".join(f"\"{str(x)}\"" for x in args)
     logger.info(f"Command: {yt_dlp_command}")
+    if request.dry_run:
+        return
 
     # execution and stdout/stderr capture
     stdout_buf = io.StringIO()

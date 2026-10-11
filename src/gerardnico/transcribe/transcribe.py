@@ -8,6 +8,20 @@ from gerardnico.transcribe.error import AppError
 logger = logging.getLogger(__name__)
 
 
+def get_transcript_from_yt_dlp(request, video_download: bool | None = None) -> tuple[Path | None, AppError | None]:
+    final_error = None
+    try:
+        # Download subtitle and optionally the video
+        social.execute_yt_dlp(request, video_download=video_download)
+    except AppError as e:
+        # We capture it as the error could be after that the transcript as been downloaded
+        # example: processing thumbnail: ERROR: Preprocessing: Error opening output files: Invalid argument
+        final_error = e
+    # Post processing (vtt file, transcribe)
+    post_processing(request)
+    return get_transcript_from_runtime_dir(request), final_error
+
+
 def get_transcript_from_request(request: Request) -> Response:
     if request.provider == "file":
         raise Exception("File processing is not yet implemented")
@@ -21,25 +35,20 @@ def get_transcript_from_request(request: Request) -> Response:
         )
 
     # Download/Transcribe
-    final_error = None
-    try:
-        # Download subtitle and optionally the video
-        social.execute_yt_dlp(request)
-    except AppError as e:
-        # We capture it as the error could be after that the transcript as been downloaded
-        # example: processing thumbnail: ERROR: Preprocessing: Error opening output files: Invalid argument
-        final_error = e
+    logger.info("Download the transcript")
+    transcript_path, final_error = get_transcript_from_yt_dlp(request)
 
-    # Post processing (vtt file, transcribe)
-    post_processing(request)
+    if transcript_path is None and not request.download:
+        logger.info("No transcript found, download the video")
+        transcript_path, final_error = get_transcript_from_yt_dlp(request)
 
     return Response(
-        path=get_transcript_from_runtime_dir(request),
+        path=transcript_path,
         error=final_error
     )
 
 
-def get_transcript_from_runtime_dir(request: Request):
+def get_transcript_from_runtime_dir(request: Request) -> Path | None:
     """
     :param request: the request data
     :return: the local transcript path or empty if none was found
@@ -126,7 +135,7 @@ def post_processing(request: Request) -> None:
         logger.info(f"Processed {vtt_file_count} VTT file(s)")
 
     logger.info(f"Trying to transcribe")
-    if get_speech_to_text(request, vtt_file_count):
+    if execute_speech_to_text(request, vtt_file_count):
         ffmpeg.video_to_audio(request)
         # Whisper is optional in production, so import it only when needed.
         try:
@@ -140,7 +149,7 @@ def post_processing(request: Request) -> None:
         transcribe_with_openai_whisper(request)
 
 
-def get_speech_to_text(request: Request, vtt_file_count):
+def execute_speech_to_text(request: Request, vtt_file_count):
     if not vtt_file_count == 0:
         logger.debug(f"  * Subtitle file found, no speech to text needed")
         return False

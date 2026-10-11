@@ -43,7 +43,7 @@ async def test_mcp_stdio_command():
     transcribe_home = get_tests_dir() / "fixtures" / "home"
     assert transcribe_home.exists(), f"{transcribe_home} does exist"
     context = context_builder(
-        home=str(transcribe_home),
+        transcribe_home=transcribe_home,
         uri=uri,
         lang="eng-US"
     )
@@ -75,5 +75,5 @@ async def test_mcp_stdio_command():
             # Call a tool
             result = await session.call_tool("get_transcript", {"uri": uri, "lang": context.request.lang})
             assert result is not None
-            expectedText = "TikTok transcript\n"
-            assert result.content == [TextContent(type="text", text=expectedText)]
+            expected_text = "TikTok transcript\n"
+            assert result.content == [TextContent(type="text", text=expected_text)]

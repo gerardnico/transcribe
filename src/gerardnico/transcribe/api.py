@@ -19,7 +19,7 @@ class CliGlobalOptions:
     # Global options in the cli
     home_directory: Path | None
     print_context: bool | None
-    verbose: bool | None
+    verbose: bool = False
 
 
 @dataclass
@@ -38,6 +38,7 @@ class Service:
     # 8206 (not 8000, too common)
     binding_port: int = 8206
 
+
 class Provider(str, Enum):
     """The provider that we wrap"""
     TIKTOK = ("tiktok", "tiktok.com")
@@ -53,6 +54,7 @@ class Provider(str, Enum):
         # used to see if the agent makes calls to its base
         obj.host = host
         return obj
+
 
 @dataclass
 class Request:
@@ -75,12 +77,16 @@ class Request:
     download: bool
     # Verbose
     verbose: bool = False
-    # session id
-    # some content are tagged as being not all public
-    # and asked for a login, we need then to pass a session_id cookie
-    # Example of video: https://www.tiktok.com/@frdric422/video/7613409335158279446
-    # that would return: This post may not be comfortable for some audiences. Log in for access.
     session_id: str | None = None
+    """
+    session id
+    some content are tagged as being not all public
+    and asked for a login, we need then to pass a session_id cookie
+    Example of video: https://www.tiktok.com/@frdric422/video/7613409335158279446
+    that would return: This post may not be comfortable for some audiences. Log in for access.
+    """
+    dry_run: bool = False
+    """Run without executing any command"""
 
 
 @dataclass
