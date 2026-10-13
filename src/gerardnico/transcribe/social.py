@@ -146,8 +146,7 @@ def get_args(request: Request, session_id: str | None, download: bool | None = N
         # put all temporary files in "wd\tmp"
         "--paths", "temp:tmp",
         # put all subtitle files in home/working directory
-        "--paths", "subtitle:.",
-        request.uri
+        "--paths", "subtitle:."
     ]
 
     if request.provider != Provider.TIKTOK:
@@ -160,6 +159,7 @@ def get_args(request: Request, session_id: str | None, download: bool | None = N
             "--convert-thumbnails", "webp",
         ]
 
+    args += [request.uri]
     return args
 
 
