@@ -41,7 +41,7 @@ def get(
     uri: str = typer.Argument(..., help='URI (URL or file path)'),
     lang: str | None = typer.Option(None, '-l', '--lang', help='Language codes (e.g., es,fr) or locale'),
     agent: bool = typer.Option(False, '-a', '--agent', help='Agent mode'),
-    download: bool = typer.Option(False, '-ds', '--download-source', help='Download the source video'),
+    may_download_source: bool = typer.Option(True, '-ds', '--download-source', help='May download the source video if no transcript is found'),
     session_id: str = typer.Option(None, '-sid', '--session-id', help='Browser Session Id Cookie'),
     dry_run: bool = typer.Option(False, '-dr', '--dry-run', help='Run without executing any command')
 ):
@@ -51,7 +51,7 @@ def get(
     context = context_builder(
         uri=uri,
         lang=lang,
-        download_source=download,
+        may_download_source=may_download_source,
         session_id=session_id,
         transcribe_home=global_options.home_directory,
         verbose=global_options.verbose,

@@ -3,7 +3,8 @@
 export UV_PROJECT_ENVIRONMENT="$HOME/.virtualenvs/${PROJECT_NAME}"
 
 # creates .venv + installs deps automatically
-uv sync
+#ie uv sync or uv sync --all-extras
+task install
 
 # Activate
 # Modify the path

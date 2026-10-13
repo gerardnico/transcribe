@@ -40,11 +40,10 @@ def get_cookie_file(request: Request):
     return str(cookie_file)
 
 
-def get_args(request: Request, session_id: str | None, download: bool | None = None):
+def get_args(request: Request, session_id: str | None, download: bool | None = False):
     args = []
 
     # Download video?
-    download = download or request.download
     if download:
         args += [
             # https://github.com/yt-dlp/yt-dlp#preset-aliases

@@ -62,7 +62,8 @@ def get_mcp_server(service: Service):
         context = context_builder(
             transcribe_home=service.home_directory,
             uri=uri,
-            lang=lang
+            lang=lang,
+            may_download_source=False
         )
         if not context.request:
             raise Exception("Internal exception, the context should have a request object")

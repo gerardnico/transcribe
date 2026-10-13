@@ -17,7 +17,7 @@ def context_builder(
     uri: str | None = None,
     transcribe_home: Path | None = None,
     lang: Optional[str] = None,
-    download_source: bool = False,
+    may_download_source: bool = False,
     transport: McpTransport = McpTransport.stdio,
     host: str = localhost,
     port: int = 8206,
@@ -32,7 +32,7 @@ def context_builder(
     :param uri: the location of the transcript to download
     :param transcribe_home: the transcribe home
     :param lang: the lang of the transcript to download.
-    :param download_source: Download the source file
+    :param may_download_source: Can we download the source file if no transcript is present
     :param transport: Mcp Transport
     :param host: Mcp host
     :param port: Mcp port - not 8000 because it's too common and will clash with already started process (such as kubelogin for instance)
@@ -190,11 +190,6 @@ def context_builder(
     else:
         raise ValueError(f"File Scheme not yet implemented")
 
-    # download-source ?
-    download_source = download_source
-    if download_source and video_path.exists():
-        download_source = False
-
     return Context(
         service,
         Request(
@@ -208,7 +203,7 @@ def context_builder(
             video_path=video_path,
             audio_path=audio_path,
             provider=provider,
-            download=download_source,
+            may_download_source=may_download_source,
             verbose=verbose,
             session_id=session_id,
             dry_run=dry_run

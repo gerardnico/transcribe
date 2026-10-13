@@ -74,7 +74,7 @@ class Request:
     # The provider name (File, YouTube, ...)
     provider: Provider
     # download the file?
-    download: bool
+    may_download_source: bool = False
     # Verbose
     verbose: bool = False
     session_id: str | None = None

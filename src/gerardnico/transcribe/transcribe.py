@@ -1,9 +1,11 @@
 import logging
 from pathlib import Path
-
+import json
 from gerardnico.transcribe import social, ffmpeg, vtt, lang, pillow_image
 from gerardnico.transcribe.api import Response, Request, TRANSCRIPT_PREFIX, Provider
 from gerardnico.transcribe.error import AppError
+
+DATA_INFO_JSON_FILE_NAME = "data.info.json"
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +36,36 @@ def get_transcript_from_request(request: Request) -> Response:
             path=actual_transcript_path
         )
 
-    # Download/Transcribe
+    # Trying by downloading only the transcript
     logger.info("Download the transcript")
     transcript_path, final_error = get_transcript_from_yt_dlp(request)
 
-    if transcript_path is None and not request.download:
-        logger.info("No transcript found, download the video")
-        transcript_path, final_error = get_transcript_from_yt_dlp(request)
+    # Trying by downloading the video
+    if transcript_path is None and not Path(request.video_path).exists():
+        if request.may_download_source:
+
+            # Check the info file
+            # We may have an error and still have subtitle in the data info file
+            # If this is the case, we error
+            data_info_path = request.runtime_directory / DATA_INFO_JSON_FILE_NAME
+            if data_info_path.exists():
+                with Path(data_info_path).open(encoding="utf-8") as f:
+                    data = json.load(f)
+                    subtitles = data.get("subtitles")
+                    if bool(subtitles):
+                        return Response(
+                            path=None,
+                            error=AppError(
+                                "Subtitles are present in the %s file but none were downloaded." % DATA_INFO_JSON_FILE_NAME,
+                                500)
+                        )
+                    logger.info("No subtitle in the %s file" % DATA_INFO_JSON_FILE_NAME)
+
+            logger.info("No transcript found, download the video")
+            transcript_path, final_error = get_transcript_from_yt_dlp(request, True)
+        else:
+            if final_error is None:
+                final_error = AppError("No transcript found and download mode is disabled", 404)
 
     return Response(
         path=transcript_path,
@@ -139,7 +164,7 @@ def post_processing(request: Request) -> None:
         ffmpeg.video_to_audio(request)
         # Whisper is optional in production, so import it only when needed.
         try:
-            from gerardnico.transcribe.whisper_processing import transcribe_with_openai_whisper
+            from gerardnico.transcribe.whisper_processing_lib import transcribe_with_openai_whisper
         except ModuleNotFoundError as e:
             raise AppError(
                 "Speech-to-text backend is unavailable. Install optional dependency with "
