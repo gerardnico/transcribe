@@ -15,8 +15,15 @@ from pydantic import Field
 from gerardnico.transcribe.api import McpTransport, Service
 from gerardnico.transcribe.transcribe import get_transcript_from_request
 
+API_HEALTH = "/api/health"
+
 logger = logging.getLogger(__name__)
 
+class EndpointFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        # Filter the api/health so that we can see the access
+        return API_HEALTH not in record.getMessage()
+logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
 def get_mcp_server(service: Service):
     # Initialize FastMCP server
@@ -126,7 +133,7 @@ def mcp_run(service: Service):
 
     # api sub-route is mandatory to note class with the
     # mcp standard route: https://gofastmcp.com/deployment/http#route-types
-    @fast_api_app.get("/api/health")
+    @fast_api_app.get(API_HEALTH)
     def health():
         return {"status": "ok"}
 
