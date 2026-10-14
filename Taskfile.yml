@@ -34,7 +34,7 @@ tasks:
       - |
         export OAUTH_CLIENT_ID=$(pass vault/google/transcribe/oauth-client-id)
         export OAUTH_CLIENT_SECRET=$(pass vault/google/transcribe/oauth-client-secret)
-        uv run python scripts/release.py {{.CLI_ARGS}}
+        uv run python scripts/release.py release
   test:
     cmds:
       # we cd in tests as JetBrains by default starts the test in the tests root directory
